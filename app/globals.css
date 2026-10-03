@@ -1,26 +1,186 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  /* Urban Distribution Hub palette — taken from the logo */
+  --color-ink: #231a1b;
+  --color-muted: #857677;
+  --color-navy: #760308; /* primary maroon (buttons, footer) */
+  --color-navy-deep: #4d0205;
+  --color-brand: #9a1219; /* links & highlights */
+  --color-leaf: #c49a45; /* warm gold accent */
+  --color-mist: #f8f2e9; /* logo cream */
+  --color-charcoal: #1d1213; /* header */
+
+  /* admin accent scale (brand maroon) */
+  --color-primary-50: #fdf3f3;
+  --color-primary-100: #fbe4e5;
+  --color-primary-200: #f6c9cb;
+  --color-primary-300: #ee9fa3;
+  --color-primary-400: #d9616a;
+  --color-primary-500: #b8323b;
+  --color-primary-600: #9a1219;
+  --color-primary-700: #800d13;
+  --color-primary-800: #66090e;
+  --color-primary-900: #4d0205;
+  --color-gold-300: #e8c77f;
+  --color-gold-400: #d9a94a;
+  --color-gold-500: #c49a45;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
+  color: var(--color-ink);
+}
+
+/* "—— TITLE ——" heading used across the public site */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.15rem, 2.2vw, 1.6rem);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: #111;
+}
+.section-title::before,
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e3e3e3;
+}
+
+/* little green dash used under card titles */
+.leaf-dash {
+  display: block;
+  width: 26px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-leaf) 50%, #e3e3e3 50%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-up {
+  animation: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes ken-burns {
+  from { transform: scale(1.08); }
+  to { transform: scale(1); }
+}
+.animate-ken-burns {
+  animation: ken-burns 7s ease-out both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-toast {
+  animation: toast-in 0.25s ease-out both;
+}
+
+/* admin form controls — in a layer so utilities (pl-9, w-auto…) can override them */
+@layer components {
+  .input {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus {
+    border-color: #b8323b;
+    box-shadow: 0 0 0 3px rgb(154 18 25 / 0.12);
+  }
+  .input[aria-invalid="true"] {
+    border-color: #ef4444;
+  }
+  .input::placeholder {
+    color: #94a3b8;
+  }
+}
+
+/* slim scrollbars for admin panels */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.35) transparent;
+}
+.scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+.scroll-thin::-webkit-scrollbar-thumb { background: rgb(148 163 184 / 0.35); border-radius: 999px; }
+.scroll-thin::-webkit-scrollbar-thumb:hover { background: rgb(148 163 184 / 0.6); }
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #e2e8f0;
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop {
+  animation: pop-in 0.14s ease-out both;
+  transform-origin: top right;
+}
+
+/* public site: favourite heart pop */
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  60% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-heart {
+  animation: heart-pop 0.45s ease-out;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* remove the grey tap flash on mobile; we use our own :active states */
+a, button {
+  -webkit-tap-highlight-color: transparent;
 }
