@@ -14,6 +14,7 @@ export function Logo({
   className,
   showName = true,
   priority,
+  src,
 }: {
   name: string;
   variant?: "seal" | "light" | "dark";
@@ -21,11 +22,14 @@ export function Logo({
   className?: string;
   showName?: boolean;
   priority?: boolean;
+  /** custom logo uploaded in the admin panel (replaces the built-in file) */
+  src?: string;
 }) {
   if (variant === "seal") {
     return (
       <Image
-        src="/brand/udh-logo.png"
+        src={src || "/brand/udh-logo.png"}
+        unoptimized={!!src && !src.startsWith("/")}
         alt={name}
         width={size}
         height={size}
@@ -40,7 +44,8 @@ export function Logo({
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <Image
-        src={light ? "/brand/udh-mark-white.png" : "/brand/udh-mark.png"}
+        src={(light && src) || (light ? "/brand/udh-mark-white.png" : "/brand/udh-mark.png")}
+        unoptimized={!!src && light && !src.startsWith("/")}
         alt={showName ? "" : name}
         width={Math.round(size * 1.07)}
         height={size}

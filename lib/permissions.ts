@@ -20,6 +20,7 @@ export interface ModuleDef {
 export const MODULES: ModuleDef[] = [
   { key: "products", label: "Products", group: "Catalogue", actions: ACTIONS },
   { key: "categories", label: "Categories", group: "Catalogue", actions: ACTIONS },
+  { key: "colors", label: "Tile colours", group: "Catalogue", actions: ACTIONS },
   { key: "catalogues", label: "Catalogues", group: "Catalogue", actions: ACTIONS },
   { key: "slides", label: "Hero slider", group: "Website", actions: ACTIONS },
   { key: "news", label: "News & blog", group: "Website", actions: ACTIONS },
@@ -45,7 +46,7 @@ export function expand(permissions: readonly string[]) {
   return permissions.includes("*") ? [...ALL_PERMISSIONS] : permissions.filter((p) => ALL_PERMISSIONS.includes(p));
 }
 
-const content = ["products", "categories", "catalogues", "slides", "news", "projects", "sustainability", "stores"];
+const content = ["products", "categories", "colors", "catalogues", "slides", "news", "projects", "sustainability", "stores"];
 const allOf = (mods: string[], actions: readonly Action[] = ACTIONS) =>
   mods.flatMap((m) => {
     const def = MODULES.find((x) => x.key === m)!;
@@ -85,7 +86,7 @@ export const BUILT_IN_ROLES = [
     name: "Sales Manager",
     description: "Handles customer inquiries and keeps store details up to date.",
     color: "#15803d",
-    permissions: [...allOf(["inquiries"]), ...allOf(["products", "categories", "catalogues"], ["view"]), ...allOf(["stores"], ["view", "edit"])],
+    permissions: [...allOf(["inquiries"]), ...allOf(["products", "categories", "colors", "catalogues"], ["view"]), ...allOf(["stores"], ["view", "edit"])],
     system: false,
   },
   {

@@ -10,7 +10,7 @@ import { can } from "@/lib/permissions";
 
 const MODULE_OF_GROUP: Record<string, string> = {
   Products: "products", Categories: "categories", News: "news", Slides: "slides", Projects: "projects",
-  Catalogues: "catalogues", Sustainability: "sustainability", Stores: "stores", Inquiries: "inquiries",
+  Catalogues: "catalogues", Sustainability: "sustainability", Stores: "stores", Inquiries: "inquiries", Colors: "colors",
 };
 
 export const metadata: Metadata = {
@@ -30,6 +30,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const searchIndex = ([
     ...db.products.map((p) => ({ id: p.id, label: p.name, sub: `${p.code} · ${cat.get(p.categoryId) ?? ""} · ${p.size}`, href: `/admin/products/${p.id}`, group: "Products", image: p.images[0] })),
     ...db.categories.map((c) => ({ id: c.id, label: c.name, sub: `/${c.slug}`, href: `/admin/categories/${c.id}`, group: "Categories", image: c.image })),
+    ...db.colors.map((c) => ({ id: c.id, label: c.name, sub: [c.code, c.family, c.hex].filter(Boolean).join(" · "), href: `/admin/colors?open=${c.id}`, group: "Colors", image: c.image })),
     ...db.news.map((n) => ({ id: n.id, label: n.title, sub: n.type, href: `/admin/news/${n.id}`, group: "News", image: n.image })),
     ...db.slides.map((s) => ({ id: s.id, label: s.title, sub: s.subtitle, href: `/admin/slides/${s.id}`, group: "Slides", image: s.image })),
     ...db.projects.map((p) => ({ id: p.id, label: p.title, sub: `${p.client} · ${p.location}`, href: `/admin/projects/${p.id}`, group: "Projects", image: p.image })),

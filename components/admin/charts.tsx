@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import Img from "@/components/Img";
 import { cn } from "@/lib/utils";
@@ -234,13 +234,14 @@ export function StatusBar({ segments }: { segments: { key: string; label: string
 
 /* --------------------------------------------------------- ranked bar list */
 
-export function BarList({ items, unit }: { items: { key: string; label: string; value: number; href?: string; image?: string; sub?: string }[]; unit?: string }) {
+export function BarList({ items, unit }: { items: { key: string; label: string; value: number; href?: string; image?: string; swatch?: CSSProperties; sub?: string }[]; unit?: string }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
     <ul className="space-y-1">
       {items.map((it) => {
         const content = (
           <>
+            {it.swatch && <span className="size-9 shrink-0 rounded-md shadow-inner ring-1 ring-black/5 ring-inset" style={it.swatch} />}
             {it.image !== undefined && (
               <span className="relative size-9 shrink-0 overflow-hidden rounded-md bg-slate-100">
                 <Img src={it.image} alt="" fill sizes="36px" className="object-cover" />

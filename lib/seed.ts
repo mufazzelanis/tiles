@@ -1,5 +1,6 @@
-import type { Database, Product } from "./types";
+import type { Database, Product, TileColor } from "./types";
 import { BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
+import { DEFAULT_COLORS, DEFAULT_PRODUCT_COLORS } from "./colors";
 
 const u = (id: string, w = 1600) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
@@ -38,7 +39,14 @@ const categories = [
   { id: "cat-rm", name: "Rustic Matt", slug: "rustic-matt", image: IMG.apartment, description: "Natural stone and wood looks with a warm, slip-resistant matt finish." },
 ].map((c, i) => ({ ...c, order: i + 1, active: true, ...stamp }));
 
-type P = Omit<Product, "id" | "slug" | "views" | "createdAt" | "updatedAt" | "active">;
+export function defaultColors(): TileColor[] {
+  const at = new Date().toISOString();
+  return DEFAULT_COLORS.map((c, i) => ({ ...c, id: `clr-${c.slug}`, order: i + 1, active: true, createdAt: at, updatedAt: at }));
+}
+const colors = defaultColors();
+const colorBySlug = new Map(colors.map((c) => [c.slug, c]));
+
+type P = Omit<Product, "id" | "slug" | "views" | "createdAt" | "updatedAt" | "active" | "colorVariants">;
 const productSeed: P[] = [
   { name: "Statuario Bianco", code: "NCP-6060-01", categoryId: "cat-ncp", size: "60x60 cm", finish: "Polished", color: "White", thickness: "9 mm", applications: ["Floor", "Living Room", "Bedroom"], piecesPerBox: 4, sqftPerBox: 15.5, price: 2150, images: [IMG.bedroom, IMG.livingRoom], description: "Classic Statuario marble look with soft grey veining and a nano crystal polished surface.", featured: true, isNew: true },
   { name: "Calacatta Gold", code: "NCP-6012-02", categoryId: "cat-ncp", size: "60x120 cm", finish: "Polished", color: "White", thickness: "9 mm", applications: ["Floor", "Living Room"], piecesPerBox: 2, sqftPerBox: 15.5, price: 3400, images: [IMG.livingRoom2, IMG.lounge], description: "Bold gold veining on a warm white base, made for statement living spaces.", featured: true, isNew: false },
@@ -54,15 +62,21 @@ const productSeed: P[] = [
   { name: "Oak Plank", code: "RM-2012-51", categoryId: "cat-rm", size: "20x120 cm", finish: "Matt", color: "Brown", thickness: "9 mm", applications: ["Floor", "Bedroom", "Living Room"], piecesPerBox: 5, sqftPerBox: 12.9, price: 2100, images: [IMG.sofa, IMG.bedroom], description: "Herringbone-ready oak plank tile with the warmth of real wood.", featured: true, isNew: true },
 ];
 
-const products: Product[] = productSeed.map((p, i) => ({
-  ...p,
-  id: `prd-${i + 1}`,
-  slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-  views: Math.round(40 + Math.random() * 400),
-  active: true,
-  createdAt: daysAgo(60 - i * 4),
-  updatedAt: daysAgo(60 - i * 4),
-}));
+const products: Product[] = productSeed.map((p, i) => {
+  const shades = (DEFAULT_PRODUCT_COLORS[p.name] ?? []).map((s) => colorBySlug.get(s)).filter((c): c is TileColor => !!c);
+  return {
+    ...p,
+    color: shades.map((c) => c.name).join(", ") || p.color,
+    // the first shade uses the product's cover photo
+    colorVariants: shades.map((c, n) => ({ colorId: c.id, image: n === 0 ? (p.images[0] ?? "") : "" })),
+    id: `prd-${i + 1}`,
+    slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    views: Math.round(40 + Math.random() * 400),
+    active: true,
+    createdAt: daysAgo(60 - i * 4),
+    updatedAt: daysAgo(60 - i * 4),
+  };
+});
 
 const divisions = ["Dhaka", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barishal", "Rangpur", "Mymensingh"];
 
@@ -114,6 +128,7 @@ export function createSeed(adminHash: string, adminEmail: string): Database {
       },
     ],
     categories,
+    colors,
     products,
     slides: [
       { id: "sld-1", title: "Echoes of Excellence", subtitle: "Herringbone wood tiles that bring warmth to every room", image: u("1618221195710-dd6b41faaea6", 2200), ctaLabel: "Find out more", ctaLink: "/products", order: 1, active: true, ...stamp },
@@ -146,9 +161,9 @@ export function createSeed(adminHash: string, adminEmail: string): Database {
       { id: "sus-3", title: "Water", heading: "Zero liquid discharge", body: "Process water is treated and recycled in a closed loop, so no untreated water ever leaves the plant.", image: IMG.house, order: 3, active: true, ...stamp },
     ],
     inquiries: [
-      { id: "inq-1", name: "Rahim Uddin", email: "rahim@example.com", phone: "01711000001", subject: "Bulk order for apartment project", message: "We need around 12,000 sqft of 60x60 polished tiles. Please share dealer pricing.", productId: "prd-1", status: "new", notes: "", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
-      { id: "inq-2", name: "Nusrat Jahan", email: "nusrat@example.com", phone: "01811000002", subject: "Bathroom tiles availability", message: "Is Armani Grey available in Sylhet display center?", productId: "prd-4", status: "in-progress", notes: "Forwarded to Sylhet dealer.", createdAt: daysAgo(4), updatedAt: daysAgo(3) },
-      { id: "inq-3", name: "Kamal Hossain", email: "kamal@example.com", phone: "01911000003", subject: "Dealership", message: "I want to become a dealer in Rangpur.", productId: "", status: "closed", notes: "", createdAt: daysAgo(9), updatedAt: daysAgo(6) },
+      { id: "inq-1", name: "Rahim Uddin", email: "rahim@example.com", phone: "01711000001", subject: "Bulk order for apartment project", message: "We need around 12,000 sqft of 60x60 polished tiles. Please share dealer pricing.", productId: "prd-1", colorId: "clr-statuario-white", colorName: "Statuario White", colorHex: "#f4f2ee", boxes: 780, area: 12000, location: "Gulshan, Dhaka", extra: [], status: "new", notes: "", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
+      { id: "inq-2", name: "Nusrat Jahan", email: "nusrat@example.com", phone: "01811000002", subject: "Bathroom tiles availability", message: "Is Armani Grey available in Sylhet display center?", productId: "prd-4", colorId: "clr-armani-grey", colorName: "Armani Grey", colorHex: "#a9a6a1", boxes: 0, area: 0, location: "Sylhet", extra: [], status: "in-progress", notes: "Forwarded to Sylhet dealer.", createdAt: daysAgo(4), updatedAt: daysAgo(3) },
+      { id: "inq-3", name: "Kamal Hossain", email: "kamal@example.com", phone: "01911000003", subject: "Dealership", message: "I want to become a dealer in Rangpur.", productId: "", colorId: "", colorName: "", colorHex: "", boxes: 0, area: 0, location: "Rangpur", extra: [], status: "closed", notes: "", createdAt: daysAgo(9), updatedAt: daysAgo(6) },
     ],
     activity: [],
   };

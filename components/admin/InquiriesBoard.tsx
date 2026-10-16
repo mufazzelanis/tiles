@@ -2,7 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Inbox, Mail, Package, Phone, Search, Trash2, X } from "lucide-react";
+import { Inbox, Mail, Package, Palette, Phone, Search, Trash2, X } from "lucide-react";
+import { Swatch } from "@/components/Swatch";
+import type { SwatchColor } from "@/lib/colors";
 import { deleteInquiries, updateInquiry } from "@/app/admin/actions";
 import type { Inquiry, InquiryStatus } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
@@ -17,20 +19,36 @@ const STATUSES: { value: InquiryStatus; label: string; tone: "indigo" | "amber" 
 ];
 const toneOf = (s: InquiryStatus) => STATUSES.find((x) => x.value === s)!.tone;
 
+/** The live library colour if it still exists, else the snapshot saved with the inquiry. */
+function inquiryColor(i: Inquiry, byId: Map<string, SwatchColor>) {
+  if (!i.colorName && !i.colorId) return null;
+  return byId.get(i.colorId) ?? { id: i.colorId || i.colorName, name: i.colorName, slug: "", code: "", hex: i.colorHex || "#cccccc", hex2: i.colorHex || "#cccccc", pattern: "solid" as const, image: "" };
+}
+
 export function InquiriesBoard({
   inquiries,
   products,
+  colors = [],
   canEdit = true,
   canDelete = true,
 }: {
   inquiries: Inquiry[];
   products: Record<string, { name: string; slug: string }>;
+  colors?: SwatchColor[];
   canEdit?: boolean;
   canDelete?: boolean;
 }) {
   const params = useSearchParams();
   const [tab, setTab] = useState<string>(params.get("status") ?? "all");
   const [q, setQ] = useState("");
+  const [color, setColor] = useState(params.get("color") ?? "all");
+  const colorById = useMemo(() => new Map(colors.map((c) => [c.id, c])), [colors]);
+  // colours that appear in at least one inquiry, most requested first
+  const requested = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const i of inquiries) if (i.colorId) n.set(i.colorId, (n.get(i.colorId) ?? 0) + 1);
+    return [...n].sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ id, count, name: colorById.get(id)?.name ?? inquiries.find((i) => i.colorId === id)?.colorName ?? "Colour" }));
+  }, [inquiries, colorById]);
   const [openId, setOpenId] = useState<string | null>(params.get("open"));
   const [confirm, setConfirm] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -42,6 +60,7 @@ export function InquiriesBoard({
   const list = inquiries.filter(
     (i) =>
       (tab === "all" || i.status === tab) &&
+      (color === "all" || (color === "none" ? !i.colorId : i.colorId === color)) &&
       (!q || `${i.name} ${i.email} ${i.phone} ${i.subject} ${i.message}`.toLowerCase().includes(q.toLowerCase())),
   );
   const open = inquiries.find((i) => i.id === openId) ?? null;
@@ -74,6 +93,16 @@ export function InquiriesBoard({
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, message…" className="input pl-9" />
           </label>
+          {requested.length > 0 && (
+            <label className="relative">
+              <Palette className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+              <select value={color} onChange={(e) => setColor(e.target.value)} className="input w-auto pl-9" aria-label="Filter by colour">
+                <option value="all">All colours</option>
+                {requested.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.count})</option>)}
+                <option value="none">No colour chosen</option>
+              </select>
+            </label>
+          )}
         </div>
         {list.length ? (
           <ul className={cn("divide-y divide-slate-100", pending && "opacity-60")}>
@@ -88,8 +117,19 @@ export function InquiriesBoard({
                     <span className="flex items-center gap-2">
                       <span className={cn("truncate text-sm text-slate-900", i.status === "new" && "font-semibold")}>{i.name}</span>
                       <Badge tone={toneOf(i.status)}>{i.status.replace("-", " ")}</Badge>
+                      {i.boxes > 0 && <Badge tone="blue">{i.boxes} boxes</Badge>}
                     </span>
-                    <span className="mt-0.5 block truncate text-sm text-slate-700">{i.subject}</span>
+                    <span className="mt-0.5 flex items-center gap-2 text-sm text-slate-700">
+                      <span className="truncate">{i.subject}</span>
+                      {(() => {
+                        const c = inquiryColor(i, colorById);
+                        return c && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 py-0.5 pr-2 pl-0.5 text-[11px] text-slate-600">
+                            <Swatch color={c} className="size-3.5" /> {c.name}
+                          </span>
+                        );
+                      })()}
+                    </span>
                     <span className="mt-0.5 block truncate text-xs text-slate-500">{i.message}</span>
                   </span>
                   <span className="shrink-0 text-xs text-slate-400">{timeAgo(i.createdAt)}</span>
@@ -130,8 +170,39 @@ export function InquiriesBoard({
                     <Package className="size-4" /> {products[open.productId].name}
                   </a>
                 )}
+                {(() => {
+                  const c = inquiryColor(open, colorById);
+                  return c && (
+                    <p className="flex items-center gap-2 pt-1 text-slate-700">
+                      <Swatch color={c} className="size-6 shadow-inner" />
+                      <span>
+                        <span className="block text-[11px] tracking-wide text-slate-400 uppercase">Colour requested</span>
+                        <b className="font-medium">{c.name}</b>
+                        {c.code && <span className="ml-1.5 font-mono text-xs text-slate-400">{c.code}</span>}
+                        {!colorById.has(open.colorId) && <span className="ml-1.5 text-xs text-amber-600">(no longer in the library)</span>}
+                      </span>
+                    </p>
+                  );
+                })()}
               </div>
-              <p className="rounded-lg bg-slate-50 p-4 text-sm leading-relaxed whitespace-pre-line text-slate-700">{open.message}</p>
+              {(open.boxes > 0 || open.location) && (
+                <dl className="grid grid-cols-3 divide-x divide-slate-100 rounded-lg border border-slate-200 text-center">
+                  <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Boxes</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.boxes || "—"}</dd></div>
+                  <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Area</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.area ? `${open.area.toLocaleString()} sqft` : "—"}</dd></div>
+                  <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Deliver to</dt><dd className="truncate text-sm font-semibold text-slate-900" title={open.location}>{open.location || "—"}</dd></div>
+                </dl>
+              )}
+              {open.message && <p className="rounded-lg bg-slate-50 p-4 text-sm leading-relaxed whitespace-pre-line text-slate-700">{open.message}</p>}
+              {open.extra?.length > 0 && (
+                <dl className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
+                  {open.extra.map((x, n) => (
+                    <div key={n} className="grid grid-cols-[40%_1fr] gap-3 px-3 py-2">
+                      <dt className="text-slate-500">{x.label}</dt>
+                      <dd className="font-medium break-words text-slate-800">{x.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
 
               <div>
                 <p className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Status</p>

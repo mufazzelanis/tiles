@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Bell, BookOpen, ChevronLeft, ChevronRight, ExternalLink, FolderKanban, GalleryHorizontal, Images, Inbox, KeyRound,
-  LayoutDashboard, Leaf, LogOut, MapPin, Menu, Newspaper, Package, Search,
+  LayoutDashboard, Leaf, LogOut, MapPin, Megaphone, Menu, PanelsTopLeft, Newspaper, Package, Palette, Search,
   Settings, ShieldCheck, Tags, Users, X,
 } from "lucide-react";
 import { logout } from "@/app/admin/actions";
@@ -40,6 +40,7 @@ export const NAV = [
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: Tags },
+      { href: "/admin/colors", label: "Tile Colours", icon: Palette },
       { href: "/admin/catalogues", label: "Catalogues", icon: BookOpen },
     ],
   },
@@ -61,6 +62,8 @@ export const NAV = [
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/roles", label: "Roles & Permissions", icon: ShieldCheck },
       { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/settings/layout", label: "Header & Footer", icon: PanelsTopLeft },
+      { href: "/admin/settings/meta", label: "Facebook Pixel", icon: Megaphone },
     ],
   },
 ] as const;
@@ -174,7 +177,11 @@ export function Shell({
   const section = ALL_ITEMS.find((i) => !i.exact && segments[0] && i.href === `/admin/${segments[0]}`);
   const crumbs = [{ href: "/admin", label: "Dashboard" }];
   if (section) crumbs.push({ href: section.href, label: section.label });
-  if (segments[1]) crumbs.push({ href: pathname, label: segments[1] === "new" ? "New" : "Edit" });
+  const subPage = ALL_ITEMS.find((i) => segments[1] && i.href === `/admin/${segments[0]}/${segments[1]}`);
+  if (segments[1]) crumbs.push({ href: pathname, label: subPage?.label ?? (segments[1] === "new" ? "New" : "Edit") });
+  // the most specific nav item wins (e.g. "Facebook Pixel" over "Settings")
+  const activeHref = ALL_ITEMS.filter((i) => !i.exact && (pathname === i.href || pathname.startsWith(`${i.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   const sidebar = (isCollapsed: boolean) => (
     <div className="flex h-full flex-col">
@@ -195,7 +202,7 @@ export function Shell({
               )}
               <ul className="space-y-0.5">
                 {items.map((item) => {
-                  const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+                  const active = item.exact ? pathname === item.href : item.href === activeHref;
                   const Icon = item.icon;
                   const count = item.badge ? newInquiries : 0;
                   return (

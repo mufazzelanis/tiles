@@ -35,6 +35,37 @@ export interface Category {
   updatedAt: string;
 }
 
+export type ColorPattern = "solid" | "marble" | "gradient" | "speckle" | "wood" | "terrazzo";
+
+/** A tile colour / shade managed from the admin panel. */
+export interface TileColor {
+  id: ID;
+  name: string;
+  slug: string;
+  /** shade code printed on the box, e.g. "C-102" */
+  code: string;
+  /** broad family used for grouping (White, Beige, Grey…) */
+  family: string;
+  /** base colour, #rrggbb */
+  hex: string;
+  /** vein / accent colour for patterned swatches */
+  hex2: string;
+  pattern: ColorPattern;
+  /** optional texture photo — overrides the drawn pattern */
+  image: string;
+  description: string;
+  order: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A colour a product is available in, with an optional photo of that shade. */
+export interface ColorVariant {
+  colorId: ID;
+  image: string;
+}
+
 export interface Product {
   id: ID;
   name: string;
@@ -43,7 +74,9 @@ export interface Product {
   categoryId: ID;
   size: string;
   finish: string;
+  /** names of the available colours (kept in sync with colorVariants, used for search) */
   color: string;
+  colorVariants: ColorVariant[];
   thickness: string;
   applications: string[];
   piecesPerBox: number;
@@ -146,6 +179,16 @@ export interface Inquiry {
   subject: string;
   message: string;
   productId: ID | "";
+  /** colour the customer asked about — name and hex are snapshots so they survive deletes */
+  colorId: ID | "";
+  colorName: string;
+  colorHex: string;
+  /** quote / order requests: boxes wanted, area in sqft and delivery location */
+  boxes: number;
+  area: number;
+  location: string;
+  /** answers to custom contact-form fields */
+  extra: { label: string; value: string }[];
   status: InquiryStatus;
   notes: string;
   createdAt: string;
@@ -200,6 +243,7 @@ export interface Database {
   roles: Role[];
   users: User[];
   categories: Category[];
+  colors: TileColor[];
   products: Product[];
   slides: Slide[];
   stores: Store[];

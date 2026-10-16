@@ -16,7 +16,9 @@ export type FieldType =
   | "file"
   | "boolean"
   | "date"
-  | "slug";
+  | "slug"
+  /** colour variants picked from the Tile Colours library */
+  | "colors";
 
 export interface FieldDef {
   name: string;
@@ -38,7 +40,7 @@ export interface FieldDef {
   min?: number;
 }
 
-export type ColumnType = "image" | "text" | "badge" | "boolean" | "date" | "ref" | "number";
+export type ColumnType = "image" | "text" | "badge" | "boolean" | "date" | "ref" | "number" | "swatches";
 
 export interface ColumnDef {
   key: string;
@@ -64,7 +66,6 @@ export interface ResourceDef {
 export const FINISHES = ["Polished", "Glossy", "Satin", "Matt", "Rustic", "Lappato"];
 export const APPLICATIONS = ["Floor", "Wall", "Kitchen", "Bathroom", "Living Room", "Bedroom", "Outdoor", "Commercial"];
 export const SIZES = ["20x120 cm", "30x60 cm", "40x40 cm", "60x60 cm", "60x120 cm", "80x80 cm", "80x160 cm", "120x240 cm"];
-export const COLORS = ["White", "Beige", "Grey", "Black", "Brown", "Blue", "Green", "Multi"];
 export const DIVISIONS = ["Dhaka", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barishal", "Rangpur", "Mymensingh"];
 
 const activeField: FieldDef = { name: "active", label: "Published", type: "boolean", side: true, help: "Visible on the website" };
@@ -85,6 +86,7 @@ export const RESOURCES = {
       { key: "code", label: "Code" },
       { key: "categoryId", label: "Category", type: "ref" },
       { key: "size", label: "Size", type: "badge" },
+      { key: "colorVariants", label: "Colours", type: "swatches" },
       { key: "views", label: "Views", type: "number" },
       { key: "featured", label: "Featured", type: "boolean" },
       { key: "active", label: "Status", type: "boolean" },
@@ -101,12 +103,12 @@ export const RESOURCES = {
       { name: "categoryId", label: "Category", type: "select", source: "categories", required: true },
       { name: "size", label: "Size", type: "select", options: SIZES, required: true },
       { name: "finish", label: "Finish", type: "select", options: FINISHES, required: true },
-      { name: "color", label: "Colour", type: "select", options: COLORS },
       { name: "thickness", label: "Thickness", type: "text", placeholder: "9 mm" },
       { name: "piecesPerBox", label: "Pieces / box", type: "number", min: 0 },
       { name: "sqftPerBox", label: "Sqft / box", type: "number", min: 0 },
       { name: "price", label: "Price per box (৳)", type: "number", min: 0, help: "Leave 0 to show “Price on request”" },
       { name: "applications", label: "Application areas", type: "multiselect", options: APPLICATIONS, full: true },
+      { name: "colorVariants", label: "Available colours", type: "colors", full: true, help: "Customers pick one of these when they ask for a quote. Add a photo per colour to switch the gallery." },
       { name: "description", label: "Description", type: "textarea", full: true },
       { name: "images", label: "Gallery", type: "images", full: true, help: "First image is the cover" },
       activeField,

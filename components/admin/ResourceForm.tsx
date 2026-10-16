@@ -9,6 +9,8 @@ import { cn, formatDate, slugify } from "@/lib/utils";
 import { Card } from "./ui";
 import { ImageField, ImagesField, Toggle } from "./fields";
 import { LivePreview, SearchPreview } from "./LivePreview";
+import { ColorVariantsField, type ColorOption } from "./ColorVariantsField";
+import type { ColorVariant } from "@/lib/types";
 
 type Values = Record<string, unknown>;
 
@@ -17,6 +19,7 @@ export function ResourceForm({
   id,
   initial,
   categories,
+  colors = [],
   siteName,
   readOnly = false,
 }: {
@@ -24,6 +27,7 @@ export function ResourceForm({
   id: string | null;
   initial: Values;
   categories: { value: string; label: string }[];
+  colors?: ColorOption[];
   siteName: string;
   readOnly?: boolean;
 }) {
@@ -45,6 +49,14 @@ export function ResourceForm({
       const fd = new FormData(form);
       const next: Values = {};
       for (const fld of def.fields) {
+        if (fld.type === "colors") {
+          try {
+            next[fld.name] = JSON.parse(String(fd.get(fld.name) ?? "[]"));
+          } catch {
+            next[fld.name] = [];
+          }
+          continue;
+        }
         next[fld.name] = fld.type === "images" || fld.type === "multiselect" ? fd.getAll(fld.name) : fld.type === "boolean" ? fd.get(fld.name) === "on" : fd.get(fld.name);
       }
       setLive(next);
@@ -112,6 +124,8 @@ export function ResourceForm({
         return <ImageField name={f.name} kind="file" defaultValue={String(v ?? "")} invalid={!!err(f)} onChange={touch} />;
       case "images":
         return <ImagesField name={f.name} defaultValue={(v as string[]) ?? []} invalid={!!err(f)} onChange={touch} />;
+      case "colors":
+        return <ColorVariantsField name={f.name} defaultValue={(v as ColorVariant[]) ?? []} colors={colors} onChange={touch} />;
       case "slug":
         return (
           <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 focus-within:border-primary-500">
@@ -225,7 +239,7 @@ export function ResourceForm({
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Eye className="size-4 text-slate-400" /> Live preview</h2>
                 <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">updates as you type</span>
               </header>
-              <div className="p-4"><LivePreview def={def} values={live} categoryName={catName} /></div>
+              <div className="p-4"><LivePreview def={def} values={live} categoryName={catName} colors={colors} /></div>
             </Card>
           )}
           {seoPath && (

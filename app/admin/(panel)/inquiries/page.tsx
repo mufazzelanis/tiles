@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { PageHeader } from "@/components/admin/ui";
 import { InquiriesBoard } from "@/components/admin/InquiriesBoard";
+import { toSwatch } from "@/lib/colors";
 
 export const metadata: Metadata = { title: "Inquiries" };
 
@@ -24,7 +25,7 @@ export default async function InquiriesPage() {
           </a>
         }
       />
-      <InquiriesBoard inquiries={db.inquiries} products={products} canEdit={can(me.permissions, "inquiries", "edit")} canDelete={can(me.permissions, "inquiries", "delete")} />
+      <InquiriesBoard inquiries={db.inquiries} products={products} colors={db.colors.map(toSwatch)} canEdit={can(me.permissions, "inquiries", "edit")} canDelete={can(me.permissions, "inquiries", "delete")} />
     </>
   );
 }

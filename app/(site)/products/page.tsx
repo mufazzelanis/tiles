@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSite } from "@/lib/queries";
-import { APPLICATIONS, COLORS, FINISHES, SIZES } from "@/lib/resources";
+import { getSite, type SiteProduct } from "@/lib/queries";
+import { APPLICATIONS, FINISHES, SIZES } from "@/lib/resources";
+import { toSwatch } from "@/lib/colors";
 import { PageHero } from "@/components/site/PageHero";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductFilters, SortSelect } from "@/components/site/ProductFilters";
 import { FilterSheet } from "@/components/site/FilterSheet";
 import { SEED_IMAGES } from "@/lib/seed";
 import { cn } from "@/lib/utils";
-import type { Product } from "@/lib/types";
+import { TrackEvent } from "@/components/site/TrackEvent";
 
 export const metadata: Metadata = { title: "Products" };
 
@@ -17,7 +18,7 @@ const list = (v: string | string[] | undefined) => (v === undefined ? [] : Array
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const sp = await searchParams;
-  const { products, categories, categoryById } = await getSite();
+  const { products, categories, categoryById, colors } = await getSite();
 
   const q = String(sp.q ?? "").trim().toLowerCase();
   const sort = String(sp.sort ?? "featured");
@@ -30,16 +31,16 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
     application: list(sp.application),
   };
 
-  const matches = (p: Product, skip?: string) =>
+  const matches = (p: SiteProduct, skip?: string) =>
     (!q || [p.name, p.code, p.color, p.size, p.finish, p.description].join(" ").toLowerCase().includes(q)) &&
     (skip === "category" || !selected.category.length || selected.category.includes(categoryById.get(p.categoryId)?.slug ?? "")) &&
     (skip === "size" || !selected.size.length || selected.size.includes(p.size)) &&
     (skip === "finish" || !selected.finish.length || selected.finish.includes(p.finish)) &&
-    (skip === "color" || !selected.color.length || selected.color.includes(p.color)) &&
+    (skip === "color" || !selected.color.length || p.swatches.some((c) => selected.color.includes(c.slug))) &&
     (skip === "application" || !selected.application.length || selected.application.some((a) => p.applications.includes(a)));
 
   const filtered = products.filter((p) => matches(p));
-  const sorters: Record<string, (a: Product, b: Product) => number> = {
+  const sorters: Record<string, (a: SiteProduct, b: SiteProduct) => number> = {
     featured: (a, b) => Number(b.featured) - Number(a.featured) || b.updatedAt.localeCompare(a.updatedAt),
     new: (a, b) => b.createdAt.localeCompare(a.createdAt),
     popular: (a, b) => b.views - a.views,
@@ -53,9 +54,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const shown = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   // facet counts reflect the other active filters (faceted search)
-  const facet = (name: string, values: { value: string; label: string }[], test: (p: Product, v: string) => boolean) => ({
+  const facet = (name: string, values: { value: string; label: string; swatch?: ReturnType<typeof toSwatch> }[], test: (p: SiteProduct, v: string) => boolean) => ({
     name,
-    label: name === "application" ? "Application" : name[0].toUpperCase() + name.slice(1),
+    label: name === "application" ? "Application" : name === "color" ? "Colour" : name[0].toUpperCase() + name.slice(1),
     options: values
       .map((o) => ({ ...o, count: products.filter((p) => matches(p, name) && test(p, o.value)).length }))
       .filter((o) => o.count > 0 || selected[name].includes(o.value)),
@@ -65,7 +66,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
     facet("application", APPLICATIONS.map((v) => ({ value: v, label: v })), (p, v) => p.applications.includes(v)),
     facet("size", SIZES.map((v) => ({ value: v, label: v })), (p, v) => p.size === v),
     facet("finish", FINISHES.map((v) => ({ value: v, label: v })), (p, v) => p.finish === v),
-    facet("color", COLORS.map((v) => ({ value: v, label: v })), (p, v) => p.color === v),
+    facet("color", colors.map((c) => ({ value: c.slug, label: c.name, swatch: toSwatch(c) })), (p, v) => p.swatches.some((c) => c.slug === v)),
   ];
 
   const qs = new URLSearchParams();
@@ -80,6 +81,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
 
   return (
     <>
+      {q && <TrackEvent name="Search" trackKey={q} data={{ search_string: q, content_ids: filtered.slice(0, 10).map((p) => p.id), content_type: "product" }} />}
       <PageHero
         title={activeCat?.name ?? "Our Products"}
         subtitle={activeCat?.description ?? "Floor, wall, kitchen, bathroom and outdoor tiles — find the perfect finish for every space."}

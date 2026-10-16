@@ -11,6 +11,8 @@ import Img from "@/components/Img";
 import { deleteResources, duplicateResource, reorderResource, setPublished, toggleField } from "@/app/admin/actions";
 import { getResource, type ColumnDef, type ResourceKey } from "@/lib/resources";
 import { cn, formatDate, timeAgo } from "@/lib/utils";
+import { SwatchDots } from "@/components/Swatch";
+import type { SwatchColor } from "@/lib/colors";
 import { Badge, Button, Card, EmptyState, LinkButton } from "./ui";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { toast } from "./Toaster";
@@ -41,11 +43,13 @@ export function ResourceTable({
   resourceKey,
   rows,
   categories,
+  colors = [],
   perms = { create: true, edit: true, delete: true },
 }: {
   resourceKey: ResourceKey;
   rows: Record<string, unknown>[];
   categories: { value: string; label: string }[];
+  colors?: SwatchColor[];
   perms?: { create: boolean; edit: boolean; delete: boolean };
 }) {
   const def = getResource(resourceKey)!;
@@ -103,6 +107,7 @@ export function ResourceTable({
   }, [def.key, router, perms.create]);
 
   const catName = useMemo(() => new Map(categories.map((c) => [c.value, c.label])), [categories]);
+  const colorById = useMemo(() => new Map(colors.map((c) => [c.id, c])), [colors]);
   const counts = useMemo(
     () => ({ all: list.length, published: list.filter((r) => r.active).length, draft: list.filter((r) => !r.active).length }),
     [list],
@@ -216,6 +221,10 @@ export function ResourceTable({
         return <span className="whitespace-nowrap text-slate-500">{formatDate(String(v ?? ""))}</span>;
       case "number":
         return <span className="text-slate-600 tabular-nums">{Number(v ?? 0).toLocaleString()}</span>;
+      case "swatches": {
+        const shades = ((v as { colorId: string }[]) ?? []).map((x) => colorById.get(x.colorId)).filter((c): c is SwatchColor => !!c);
+        return shades.length ? <SwatchDots colors={shades} size={18} max={4} className="text-slate-500" /> : <span className="text-slate-300">—</span>;
+      }
       default:
         return col.key === def.titleField ? (
           <span className="block min-w-0">
@@ -406,12 +415,13 @@ export function ResourceTable({
                   </Link>
                   <p className="truncate text-xs text-slate-500">
                     {def.columns
-                      .filter((c) => c.key !== def.titleField && !["image", "boolean"].includes(c.type ?? ""))
+                      .filter((c) => c.key !== def.titleField && !["image", "boolean", "swatches"].includes(c.type ?? ""))
                       .slice(0, 2)
                       .map((c) => (c.type === "ref" ? catName.get(String(r[c.key])) : c.type === "date" ? formatDate(String(r[c.key] ?? "")) : String(r[c.key] ?? "")))
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
+                  {def.columns.filter((c) => c.type === "swatches").map((c) => <div key={c.key} className="mt-1.5 h-4">{cell(c, r)}</div>)}
                   <div className="mt-2 -mr-1.5 border-t border-slate-100 pt-1.5">{rowActions(r)}</div>
                 </div>
               </div>

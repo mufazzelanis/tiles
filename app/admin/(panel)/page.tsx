@@ -3,8 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   AlertCircle, ArrowRight, ArrowUpRight, CircleCheck, Clock, Eye, FileText, GalleryHorizontal, Inbox, MapPin, Newspaper,
-  Package, Plus, Tags, Upload, XCircle,
+  Package, Palette, Plus, Tags, Upload, XCircle,
 } from "lucide-react";
+import { swatchStyle } from "@/lib/colors";
 import { getDb } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { Badge, Card } from "@/components/admin/ui";
@@ -88,11 +89,36 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     .slice(0, 5)
     .map((p) => ({ key: p.id, label: p.name, value: p.views, href: `/admin/products/${p.id}`, image: p.images[0] ?? "", sub: p.code }));
 
+  // which colours customers ask for most (inquiries keep a name snapshot even if the colour is gone)
+  const colorById = new Map(db.colors.map((c) => [c.id, c]));
+  const colorCounts = new Map<string, { label: string; hex: string; value: number }>();
+  for (const i of db.inquiries) {
+    if (!i.colorId) continue;
+    const cur = colorCounts.get(i.colorId) ?? { label: colorById.get(i.colorId)?.name ?? i.colorName, hex: i.colorHex, value: 0 };
+    cur.value++;
+    colorCounts.set(i.colorId, cur);
+  }
+  const topColors = [...colorCounts]
+    .sort((a, b) => b[1].value - a[1].value)
+    .slice(0, 5)
+    .map(([id, c]) => {
+      const live = colorById.get(id);
+      return {
+        key: id,
+        label: c.label,
+        value: c.value,
+        href: live ? `/admin/inquiries?color=${id}` : undefined,
+        swatch: swatchStyle(live ?? { hex: c.hex || "#cccccc", hex2: c.hex || "#cccccc", pattern: "solid", image: "" }),
+        sub: live ? `${db.products.filter((p) => p.colorVariants.some((v) => v.colorId === id)).length} products${live.code ? ` · ${live.code}` : ""}` : "Removed from library",
+      };
+    });
+
   /* ---- content health ---- */
   const checks = [
     { ok: db.products.every((p) => p.images.length > 0), label: "Every product has a photo", fix: "/admin/products", n: db.products.filter((p) => !p.images.length).length },
     { ok: db.products.every((p) => p.description.length >= 40), label: "Product descriptions are detailed", fix: "/admin/products", n: db.products.filter((p) => p.description.length < 40).length },
     { ok: db.products.every((p) => p.price > 0), label: "All products show a price", fix: "/admin/products", n: db.products.filter((p) => !p.price).length },
+    { ok: db.products.every((p) => p.colorVariants.length > 0), label: "Every product has a colour", fix: "/admin/colors", n: db.products.filter((p) => !p.colorVariants.length).length },
     { ok: db.catalogues.every((c) => c.fileUrl && c.fileUrl !== "#"), label: "Catalogues have PDFs", fix: "/admin/catalogues", n: db.catalogues.filter((c) => !c.fileUrl || c.fileUrl === "#").length },
     { ok: !!db.settings.videoId, label: "Home page video is set", fix: "/admin/settings", n: db.settings.videoId ? 0 : 1 },
     { ok: db.slides.filter((s) => s.active).length >= 2, label: "At least 2 hero slides live", fix: "/admin/slides", n: 0 },
@@ -106,9 +132,10 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     { href: "/admin/news/new", label: "Write a post", icon: Newspaper },
     { href: "/admin/media", label: "Upload media", icon: Upload },
     { href: "/admin/categories/new", label: "New category", icon: Tags },
+    { href: "/admin/colors?open=new", label: "New colour", icon: Palette },
     { href: "/admin/stores/new", label: "Add a store", icon: MapPin },
     ] as const
-  ).filter((q) => can(user.permissions, q.href.split("/")[2], (q.href.endsWith("/new") ? "create" : "view") as Action));
+  ).filter((q) => can(user.permissions, q.href.split("/")[2], (/new$/.test(q.href) ? "create" : "view") as Action));
   const kpisVisible = kpis.filter((k) => seeInq || !k.href.startsWith("/admin/inquiries"));
 
   return (
@@ -221,13 +248,24 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             <BarList items={topProducts} unit="views" />
           </div>
         </Card>
+        {can(user.permissions, "colors") && (
+          <Card title="Most requested colours" className={seeInq ? "" : "hidden"} action={<Link href="/admin/colors" className="text-xs font-medium text-primary-600 hover:underline">Colours</Link>}>
+            <div className="p-3">
+              {topColors.length ? (
+                <BarList items={topColors} unit="requests" />
+              ) : (
+                <p className="px-2 py-8 text-center text-sm text-slate-500">When customers pick a colour in a quote request, the favourites appear here.</p>
+              )}
+            </div>
+          </Card>
+        )}
         <Card title="Products by category" action={<Link href="/admin/categories" className="text-xs font-medium text-primary-600 hover:underline">Manage</Link>}>
           <div className="p-3">
             <BarList items={byCategory} />
           </div>
         </Card>
-        <Card title="Quick actions" className="lg:col-span-2 xl:col-span-1">
-          <div className="grid grid-cols-2 gap-2 p-4">
+        <Card title="Quick actions" className="xl:col-span-3">
+          <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-4 xl:grid-cols-7">
             {quick.map(({ href, label, icon: Icon }) => (
               <Link key={href} href={href} className="group flex flex-col items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50/40 active:scale-[0.98]">
                 <span className="grid size-9 place-items-center rounded-lg bg-slate-100 text-slate-600 transition group-hover:bg-primary-600 group-hover:text-white">

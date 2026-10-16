@@ -16,9 +16,13 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
     lastLoginAt: "datetime", createdBy: "string", ...ts,
   },
   categories: { id: "id", name: "string", slug: "string", image: "text", description: "text", order: "int", active: "bool", ...ts },
+  colors: {
+    id: "id", name: "string", slug: "string", code: "string", family: "string", hex: "string", hex2: "string", pattern: "string",
+    image: "text", description: "text", order: "int", active: "bool", ...ts,
+  },
   products: {
     id: "id", name: "string", slug: "string", code: "string", categoryId: "string", size: "string", finish: "string",
-    color: "string", thickness: "string", applications: "json", piecesPerBox: "int", sqftPerBox: "float", price: "float",
+    color: "string", colorVariants: "json", thickness: "string", applications: "json", piecesPerBox: "int", sqftPerBox: "float", price: "float",
     images: "json", description: "text", featured: "bool", isNew: "bool", active: "bool", views: "int", ...ts,
   },
   slides: { id: "id", title: "string", subtitle: "string", image: "text", ctaLabel: "string", ctaLink: "string", order: "int", active: "bool", ...ts },
@@ -29,7 +33,7 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
   sustainability: { id: "id", title: "string", heading: "string", body: "text", image: "text", order: "int", active: "bool", ...ts },
   inquiries: {
     id: "id", name: "string", email: "string", phone: "string", subject: "string", message: "text", productId: "string",
-    status: "string", notes: "text", ...ts,
+    colorId: "string", colorName: "string", colorHex: "string", boxes: "int", area: "float", location: "string", extra: "json", status: "string", notes: "text", ...ts,
   },
   activity: { id: "id", userName: "string", action: "string", target: "text", at: "datetime" },
 };
@@ -39,12 +43,14 @@ export const ORDER_BY: Partial<Record<Collection, string>> = {
   inquiries: "`createdAt` DESC",
   activity: "`at` DESC",
   products: "`createdAt` DESC",
+  colors: "`order` ASC",
 };
 
 const INDEXES: Partial<Record<Collection, string[]>> = {
   users: ["UNIQUE KEY `uq_users_email` (`email`)"],
   products: ["UNIQUE KEY `uq_products_slug` (`slug`)", "KEY `ix_products_category` (`categoryId`)"],
   categories: ["UNIQUE KEY `uq_categories_slug` (`slug`)"],
+  colors: ["UNIQUE KEY `uq_colors_slug` (`slug`)"],
   news: ["UNIQUE KEY `uq_news_slug` (`slug`)"],
   inquiries: ["KEY `ix_inquiries_status` (`status`)", "KEY `ix_inquiries_created` (`createdAt`)"],
   activity: ["KEY `ix_activity_at` (`at`)"],

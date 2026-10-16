@@ -4,13 +4,11 @@ import Img from "@/components/Img";
 import type { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { FavoriteButton } from "./FavoriteButton";
+import { SwatchDots } from "@/components/Swatch";
+import type { SwatchColor } from "@/lib/colors";
 
 /** The fields a card needs — also used by client lists (favorites, recently viewed). */
-export type CardProduct = Pick<Product, "id" | "slug" | "name" | "images" | "size" | "isNew" | "price" | "finish">;
-
-export function toCardProduct(p: Product): CardProduct {
-  return { id: p.id, slug: p.slug, name: p.name, images: p.images.slice(0, 2), size: p.size, isNew: p.isNew, price: p.price, finish: p.finish };
-}
+export type CardProduct = Pick<Product, "id" | "slug" | "name" | "images" | "size" | "isNew" | "price" | "finish"> & { swatches?: SwatchColor[] };
 
 export function ProductCard({ product, categoryName }: { product: CardProduct; categoryName?: string }) {
   const [cover, hover] = product.images;
@@ -49,6 +47,7 @@ export function ProductCard({ product, categoryName }: { product: CardProduct; c
         <span className="leaf-dash" />
         {product.price > 0 && <span className="text-[11px] font-semibold text-ink">{formatPrice(product.price)}</span>}
       </div>
+      {!!product.swatches?.length && <SwatchDots colors={product.swatches} max={5} size={14} className="mt-2 text-ink" />}
       <span className="mt-1.5 inline-block text-[11px] font-bold text-brand group-hover:underline">learn more</span>
     </Link>
   );

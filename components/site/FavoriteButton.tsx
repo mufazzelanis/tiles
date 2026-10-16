@@ -4,6 +4,7 @@ import { Heart } from "lucide-react";
 import { useState } from "react";
 import { siteToast, useFavorites } from "@/lib/client-store";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/meta-pixel";
 
 /** Heart toggle; safe to place inside a <Link> card. */
 export function FavoriteButton({ id, name, className, size = "sm" }: { id: string; name: string; className?: string; size?: "sm" | "lg" }) {
@@ -18,7 +19,10 @@ export function FavoriteButton({ id, name, className, size = "sm" }: { id: strin
         e.preventDefault();
         e.stopPropagation();
         const added = fav.toggle(id);
-        if (added) setBurst((b) => b + 1);
+        if (added) {
+          setBurst((b) => b + 1);
+          trackEvent("AddToWishlist", { content_ids: [id], content_name: name, content_type: "product" });
+        }
         siteToast(added ? `♥ ${name} saved to favorites` : `${name} removed from favorites`);
       }}
       aria-pressed={active}

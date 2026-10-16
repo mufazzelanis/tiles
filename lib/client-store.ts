@@ -72,6 +72,37 @@ export function pushRecentlyViewed(id: string) {
   write(RECENT_KEY, [id, ...read(RECENT_KEY).filter((x) => x !== id)].slice(0, 12));
 }
 
+/* ------------------------------------------- selected colour per product */
+
+const COLOR_EVENT = "tilora-color";
+const selectedColors = new Map<string, string>();
+const subscribeColor = (cb: () => void) => {
+  window.addEventListener(COLOR_EVENT, cb);
+  return () => window.removeEventListener(COLOR_EVENT, cb);
+};
+
+/** The colour a visitor picked on a product page — shared by the swatches, gallery and quote popup. */
+export function useSelectedColor(productId: string, fallback = "") {
+  return useSyncExternalStore(subscribeColor, () => selectedColors.get(productId) ?? fallback, () => fallback);
+}
+
+export function setSelectedColor(productId: string, colorId: string) {
+  selectedColors.set(productId, colorId);
+  window.dispatchEvent(new Event(COLOR_EVENT));
+}
+
+/* ------------------------------------------------------------ quote popup */
+
+export interface QuotePreset {
+  boxes?: number;
+  area?: number;
+}
+
+/** Open the order / quote popup from any button on the page. */
+export function openQuote(preset: QuotePreset = {}) {
+  window.dispatchEvent(new CustomEvent<QuotePreset>("open-quote", { detail: preset }));
+}
+
 /** Small app-style toast for the public site. */
 export function siteToast(message: string) {
   window.dispatchEvent(new CustomEvent("site-toast", { detail: message }));

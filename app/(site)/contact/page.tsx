@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import { Factory, Mail, MapPin, Phone } from "lucide-react";
-import { getSite } from "@/lib/queries";
+import { getSite, getSiteLayout } from "@/lib/queries";
 import { PageHero } from "@/components/site/PageHero";
 import { InquiryForm } from "@/components/site/InquiryForm";
 import { SEED_IMAGES } from "@/lib/seed";
+import { toSwatch } from "@/lib/colors";
 
 export const metadata: Metadata = { title: "Contact Us" };
 
 export default async function ContactPage({ searchParams }: PageProps<"/contact">) {
   const sp = await searchParams;
-  const { settings } = await getSite();
+  const [{ settings, colors }, layout] = await Promise.all([getSite(), getSiteLayout()]);
+  const param = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const items = [
     { Icon: Phone, label: "Call us", value: settings.phone, href: `tel:${settings.phone.replace(/\s/g, "")}` },
     { Icon: Mail, label: "Email", value: settings.email, href: `mailto:${settings.email}` },
@@ -38,8 +40,12 @@ export default async function ContactPage({ searchParams }: PageProps<"/contact"
           </ul>
         </div>
         <div className="border border-neutral-200 p-6 sm:p-8">
-          <h2 className="mb-6 font-display text-xl font-semibold text-ink">Send us a message</h2>
-          <InquiryForm defaultSubject={typeof sp.subject === "string" ? sp.subject : ""} defaultMessage={typeof sp.message === "string" ? sp.message : ""} />
+          <h2 className="mb-6 font-display text-xl font-semibold text-ink">{layout.contactForm.title}</h2>
+          <InquiryForm
+            config={layout.contactForm}
+            colors={colors.map(toSwatch)}
+            defaults={{ colorId: param("color"), subject: param("subject"), message: param("message") }}
+          />
         </div>
       </div>
     </>

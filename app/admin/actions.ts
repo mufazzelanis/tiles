@@ -6,14 +6,17 @@ import { randomInt } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { DATA_DIR, getDb, mutate } from "@/lib/db";
+import { DATA_DIR, getDb, mutate, setSetting } from "@/lib/db";
 import { checkPermission, requirePermission, requireUser } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { encodeSession, SESSION_COOKIE, SESSION_TTL } from "@/lib/session";
 import { getResource, type FieldDef, type ResourceKey } from "@/lib/resources";
 import { ALL_PERMISSIONS, can, OWNER_ROLE_ID, passwordProblems, ROLE_COLORS } from "@/lib/permissions";
 import { newId, slugify } from "@/lib/utils";
-import type { Database, InquiryStatus, Settings, User, UserStatus } from "@/lib/types";
+import { COLOR_FAMILIES, normalizeHex, PATTERNS } from "@/lib/colors";
+import { LAYOUT_KEY, normalizeLayout } from "@/lib/site-layout";
+import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
+import type { ColorPattern, ColorVariant, Database, InquiryStatus, Settings, TileColor, User, UserStatus } from "@/lib/types";
 
 export interface FormState {
   ok?: boolean;
@@ -134,6 +137,16 @@ function readField(f: FieldDef, formData: FormData): unknown {
     case "multiselect":
     case "images":
       return formData.getAll(f.name).map(String).filter(Boolean);
+    case "colors": {
+      try {
+        const list = JSON.parse(String(formData.get(f.name) ?? "[]"));
+        return Array.isArray(list)
+          ? list.filter((v) => v && typeof v.colorId === "string").map((v) => ({ colorId: String(v.colorId), image: String(v.image ?? "").trim() }))
+          : [];
+      } catch {
+        return [];
+      }
+    }
     case "date": {
       const v = String(formData.get(f.name) ?? "");
       return v ? new Date(v).toISOString() : new Date().toISOString();
@@ -170,6 +183,13 @@ export async function saveResource(_: FormState, formData: FormData): Promise<Fo
       let n = 2;
       while (list.some((r) => r.slug === slug && r.id !== id)) slug = `${base}-${n++}`;
       data.slug = slug;
+    }
+    if (key === "products") {
+      // keep only colours that still exist (once each) and mirror their names into `color` for search
+      const known = new Map(db.colors.map((c) => [c.id, c]));
+      const seen = new Set<string>();
+      data.colorVariants = (data.colorVariants as ColorVariant[]).filter((v) => known.has(v.colorId) && !seen.has(v.colorId) && seen.add(v.colorId));
+      data.color = (data.colorVariants as ColorVariant[]).map((v) => known.get(v.colorId)!.name).join(", ");
     }
     const now = new Date().toISOString();
     if (id) {
@@ -256,6 +276,115 @@ export async function reorderResource(key: ResourceKey, ids: string[]) {
     log(db, user.name, "reordered", def.label);
   });
   refreshSite();
+}
+
+/* ---------------------------------------------------------- tile colours */
+
+/** Products store their colour names for search — recompute after any colour change. */
+function syncProductColorNames(db: Database) {
+  const name = new Map(db.colors.map((c) => [c.id, c.name]));
+  for (const p of db.products) {
+    const kept = (p.colorVariants ?? []).filter((v) => name.has(v.colorId));
+    if (kept.length !== p.colorVariants.length) p.colorVariants = kept;
+    p.color = kept.map((v) => name.get(v.colorId)).join(", ");
+  }
+}
+
+export async function saveColor(_: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "") || null;
+  const { user, allowed } = await checkPermission("colors", id ? "edit" : "create");
+  if (!allowed) return DENIED;
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+
+  const name = get("name");
+  const hex = normalizeHex(get("hex"));
+  const hex2 = normalizeHex(get("hex2")) ?? hex;
+  const pattern = (PATTERNS.some((p) => p.value === get("pattern")) ? get("pattern") : "solid") as ColorPattern;
+  const family = COLOR_FAMILIES.includes(get("family")) ? get("family") : "Multi";
+  const code = get("code").toUpperCase();
+  const errors: Record<string, string> = {};
+  if (name.length < 2) errors.name = "Give the colour a name";
+  if (!hex) errors.hex = "Enter a colour like #f4f2ee";
+  if (Object.keys(errors).length) return { errors, message: "Please fix the highlighted fields." };
+
+  // assigning products edits them, so it needs that permission too
+  const syncProducts = formData.get("__syncProducts") === "1" && can(user.permissions, "products", "edit");
+  const productIds = new Set(formData.getAll("productIds").map(String));
+
+  const result = await mutate((db) => {
+    if (code && db.colors.some((c) => c.code.toUpperCase() === code && c.id !== id)) return { error: { code: "Another colour already uses this code" } };
+    const base = slugify(get("slug") || name) || "colour";
+    let slug = base;
+    for (let n = 2; db.colors.some((c) => c.slug === slug && c.id !== id); n++) slug = `${base}-${n}`;
+    const now = new Date().toISOString();
+    const fields = { name, slug, code, family, hex: hex!, hex2: hex2!, pattern, image: get("image"), description: get("description"), active: formData.get("active") === "on" };
+
+    let color: TileColor;
+    if (id) {
+      const found = db.colors.find((c) => c.id === id);
+      if (!found) return { missing: true };
+      color = Object.assign(found, fields, { updatedAt: now });
+      log(db, user.name, "updated", `Colour: ${name}`);
+    } else {
+      color = { id: `clr-${newId()}`, ...fields, order: db.colors.reduce((m, c) => Math.max(m, c.order), 0) + 1, createdAt: now, updatedAt: now };
+      db.colors.push(color);
+      log(db, user.name, "created", `Colour: ${name}`);
+    }
+
+    if (syncProducts) {
+      for (const p of db.products) {
+        const has = p.colorVariants.some((v) => v.colorId === color.id);
+        const want = productIds.has(p.id);
+        if (want && !has) p.colorVariants = [...p.colorVariants, { colorId: color.id, image: "" }];
+        if (!want && has) p.colorVariants = p.colorVariants.filter((v) => v.colorId !== color.id);
+        if (want !== has) p.updatedAt = now;
+      }
+    }
+    syncProductColorNames(db);
+    return { id: color.id };
+  });
+
+  if ("error" in result) return { errors: result.error, message: "Please fix the highlighted fields." };
+  if ("missing" in result) return { message: "That colour no longer exists." };
+  refreshSite();
+  return { ok: true, id: result.id, message: id ? `“${name}” saved.` : `“${name}” added to your colours.` };
+}
+
+export async function deleteColors(ids: string[]): Promise<FormState> {
+  const user = await requirePermission("colors", "delete");
+  if (!ids.length) return { message: "Nothing selected." };
+  await mutate((db) => {
+    const names = db.colors.filter((c) => ids.includes(c.id)).map((c) => c.name);
+    db.colors = db.colors.filter((c) => !ids.includes(c.id));
+    syncProductColorNames(db);
+    log(db, user.name, "deleted", names.length === 1 ? `Colour: ${names[0]}` : `${names.length} colours`);
+  });
+  refreshSite();
+  return { ok: true, message: ids.length === 1 ? "Colour deleted." : `${ids.length} colours deleted.` };
+}
+
+export async function setColorsActive(ids: string[], active: boolean): Promise<FormState> {
+  const user = await requirePermission("colors", "edit");
+  await mutate((db) => {
+    const now = new Date().toISOString();
+    for (const c of db.colors) if (ids.includes(c.id)) Object.assign(c, { active, updatedAt: now });
+    log(db, user.name, active ? "published" : "hid", `${ids.length} colour${ids.length > 1 ? "s" : ""}`);
+  });
+  refreshSite();
+  return { ok: true, message: active ? "Visible on the website" : "Hidden from the website" };
+}
+
+export async function reorderColors(ids: string[]): Promise<FormState> {
+  const user = await requirePermission("colors", "edit");
+  await mutate((db) => {
+    ids.forEach((id, i) => {
+      const c = db.colors.find((x) => x.id === id);
+      if (c) c.order = i + 1;
+    });
+    log(db, user.name, "reordered", "Tile colours");
+  });
+  refreshSite();
+  return { ok: true, message: "Order saved — the website is updated" };
 }
 
 /* -------------------------------------------------------------- inquiries */
@@ -571,4 +700,82 @@ export async function deleteMedia(name: string) {
   await fs.rm(path.join(DATA_DIR, "uploads", safe), { force: true });
   await mutate((db) => log(db, user.name, "deleted", `File: ${safe}`));
   revalidatePath("/admin/media");
+}
+
+/* ------------------------------------------------- Meta Pixel & CAPI */
+
+export async function saveTracking(_: FormState, formData: FormData): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const current = await getTrackingConfig();
+
+  const pixelId = get("pixelId").replace(/\s/g, "");
+  const tokenInput = get("accessToken");
+  const accessToken = formData.get("clearToken") === "on" ? "" : tokenInput || current.accessToken;
+  const apiVersion = get("apiVersion") || DEFAULT_API_VERSION;
+  const enabled = formData.get("enabled") === "on";
+  const errors: Record<string, string> = {};
+  if (pixelId && !/^\d{10,20}$/.test(pixelId)) errors.pixelId = "A Pixel / Dataset ID is 10–20 digits";
+  if (enabled && !pixelId) errors.pixelId = "Add your Pixel ID to turn tracking on";
+  if (tokenInput && tokenInput.length < 40) errors.accessToken = "That doesn't look like a Conversions API token";
+  if (!/^v\d{2}\.0$/.test(apiVersion)) errors.apiVersion = "Use a Graph API version like v23.0";
+  if (Object.keys(errors).length) return { errors, message: "Please fix the highlighted fields." };
+
+  await saveTrackingConfig({
+    enabled,
+    pixelId,
+    accessToken,
+    testEventCode: get("testEventCode").toUpperCase(),
+    capiEnabled: formData.get("capiEnabled") === "on",
+    capiPageViews: formData.get("capiPageViews") === "on",
+    apiVersion,
+    updatedAt: new Date().toISOString(),
+  });
+  await mutate((db) => log(db, user.name, "updated", "Facebook Pixel & Conversions API settings"));
+  refreshSite();
+  return { ok: true, message: enabled ? "Saved — tracking is live on the website." : "Saved — tracking is turned off." };
+}
+
+/** Sends one test event to Meta and reports exactly what came back. */
+export async function sendTrackingTest(): Promise<FormState & { result?: DeliveryLog | null }> {
+  const me = await requirePermission("settings", "edit");
+  const cfg = await getTrackingConfig();
+  if (!cfg.pixelId || !cfg.accessToken) return { message: "Save a Pixel ID and access token first." };
+  const h = await headers();
+  const result = await sendServerEvent(
+    { name: "PageView", url: `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}/`, customer: { email: me.email } },
+    contextFrom(h, await cookies()),
+    { force: true, testCode: cfg.testEventCode || undefined },
+  );
+  revalidatePath("/admin/settings/meta");
+  if (!result?.ok) return { message: `Meta rejected the test: ${result?.error ?? "unknown error"}`, result };
+  return {
+    ok: true,
+    result,
+    message: cfg.testEventCode
+      ? `Meta received the test event — check Events Manager → Test events (code ${cfg.testEventCode}).`
+      : "Meta received the event. Add a test event code to see it under Test events.",
+  };
+}
+
+/* --------------------------------------------- header, footer & contact form */
+
+export async function saveSiteLayout(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  // normalizing also validates: unknown keys dropped, links limited to safe URLs, lengths capped
+  const layout = normalizeLayout(raw);
+  const options = layout.contactForm.fields.filter((f) => f.enabled && ["select", "radio", "checkbox"].includes(f.type) && f.options.length === 0);
+  if (options.length) return { message: `Add at least one option to “${options[0].label}”.` };
+  await setSetting(LAYOUT_KEY, layout);
+  await mutate((db) => log(db, user.name, "updated", "Header, footer & contact form"));
+  refreshSite();
+  return { ok: true, message: "Saved — the website is updated." };
 }

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight, BookOpen, CornerDownLeft, ExternalLink, FileText, FolderKanban, GalleryHorizontal, Images, Inbox,
-  LayoutDashboard, Leaf, MapPin, Newspaper, Package, Plus, Search, Settings, ShieldCheck, Tags, UserCircle, Users,
+  LayoutDashboard, Leaf, MapPin, Megaphone, PanelsTopLeft, Newspaper, Package, Palette, Plus, Search, Settings, ShieldCheck, Tags, UserCircle, Users,
 } from "lucide-react";
 import Img from "@/components/Img";
 import { can, type Action } from "@/lib/permissions";
@@ -22,7 +22,7 @@ export interface SearchItem {
 
 const GROUP_ICON: Record<string, typeof Package> = {
   Products: Package, Categories: Tags, News: Newspaper, Projects: FolderKanban, Slides: GalleryHorizontal,
-  Stores: MapPin, Inquiries: Inbox, Catalogues: BookOpen, Sustainability: Leaf,
+  Stores: MapPin, Inquiries: Inbox, Catalogues: BookOpen, Sustainability: Leaf, Colors: Palette,
 };
 
 type Entry = { key: string; label: string; sub?: string; group: string; icon: typeof Package; image?: string; run: () => void };
@@ -69,6 +69,7 @@ export function CommandPalette({
         ["/admin", "Dashboard", LayoutDashboard],
         ["/admin/products", "Products", Package],
         ["/admin/categories", "Categories", Tags],
+        ["/admin/colors", "Tile Colours", Palette],
         ["/admin/catalogues", "Catalogues", BookOpen],
         ["/admin/slides", "Hero Slider", GalleryHorizontal],
         ["/admin/news", "News & Blog", Newspaper],
@@ -80,6 +81,9 @@ export function CommandPalette({
         ["/admin/users", "Users", Users],
         ["/admin/roles", "Roles & Permissions", ShieldCheck],
         ["/admin/settings", "Settings", Settings],
+        ["/admin/settings/layout", "Header & Footer", PanelsTopLeft],
+        ["/admin/settings/layout?tab=form", "Contact form fields", PanelsTopLeft],
+        ["/admin/settings/meta", "Facebook Pixel & Conversions API", Megaphone],
         ["/admin/account", "My account", UserCircle],
       ] as const
     )
@@ -91,6 +95,7 @@ export function CommandPalette({
       ["/admin/slides/new", "Add a hero slide"],
       ["/admin/news/new", "Write a news post"],
       ["/admin/categories/new", "Create a category"],
+      ["/admin/colors?open=new", "Add a tile colour"],
       ["/admin/stores/new", "Add a store"],
       ["/admin/projects/new", "Add a project"],
       ["/admin/users?invite=1", "Invite a team member"],

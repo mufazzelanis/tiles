@@ -3,12 +3,14 @@
 import Form from "next/form";
 import Link from "next/link";
 import { useRef } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { Swatch } from "@/components/Swatch";
+import type { SwatchColor } from "@/lib/colors";
 
 interface Group {
   name: string;
   label: string;
-  options: { value: string; label: string; count: number }[];
+  options: { value: string; label: string; count: number; swatch?: SwatchColor }[];
 }
 
 /** GET form that re-submits on every change, so filters apply instantly (and still work without JS). */
@@ -67,6 +69,20 @@ export function ProductFilters({
         <fieldset key={g.name} className="mt-6 border-t border-neutral-200 pt-5">
           <legend className="sr-only">{g.label}</legend>
           <p className="mb-3 text-[12px] font-semibold tracking-wider text-ink uppercase">{g.label}</p>
+          {g.options.some((o) => o.swatch) ? (
+            <div className="grid grid-cols-5 gap-2.5">
+              {g.options.map((o) => (
+                <label key={o.value} className="group relative cursor-pointer" title={`${o.label} (${o.count})`}>
+                  <input type="checkbox" name={g.name} value={o.value} defaultChecked={selected[g.name]?.includes(o.value)} className="peer sr-only" />
+                  <Swatch color={o.swatch!} className="block aspect-square w-full ring-1 ring-neutral-300 ring-offset-2 transition group-hover:ring-neutral-500 peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2" />
+                  <span className="absolute -top-1 -right-1 hidden size-4 place-items-center rounded-full bg-ink text-white peer-checked:grid">
+                    <Check className="size-2.5" strokeWidth={3} />
+                  </span>
+                  <span className="sr-only">{o.label}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
           <div className="space-y-2">
             {g.options.map((o) => (
               <label key={o.value} className="flex cursor-pointer items-center gap-2.5 text-[13px] text-neutral-600 hover:text-ink">
@@ -82,6 +98,7 @@ export function ProductFilters({
               </label>
             ))}
           </div>
+          )}
         </fieldset>
       ))}
       <noscript>

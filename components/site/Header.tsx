@@ -3,29 +3,27 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Calculator, Download, FolderKanban, Heart, Menu, Newspaper, Phone, Search, Store, X } from "lucide-react";
+import { Heart, Menu, Phone, Search, X } from "lucide-react";
 import { useFavorites } from "@/lib/client-store";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
+import { NavIcon } from "@/components/NavIcon";
+import type { HeaderConfig } from "@/lib/site-layout";
+import { MenuLink } from "./MenuLink";
 
 interface Props {
   siteName: string;
   phone: string;
   categories: { name: string; slug: string }[];
+  config: HeaderConfig;
 }
 
-const LEFT = [
-  { href: "/products", label: "Product", icon: Search },
-  { href: "/store-locator", label: "Store Locator", icon: Store },
-  { href: "/catalogue", label: "Catalogue", icon: Download },
-];
-const RIGHT = [
-  { href: "/tiles-calculator", label: "Tiles Calculator", icon: Calculator, badge: "Try now" },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/news", label: "News", icon: Newspaper },
-];
+const isActive = (pathname: string, href: string) => href !== "/" && href.startsWith("/") && pathname.startsWith(href.split(/[?#]/)[0]);
 
-export function Header({ siteName, phone, categories }: Props) {
+export function Header({ siteName, phone, categories, config }: Props) {
+  const LEFT = config.leftLinks.filter((l) => l.enabled);
+  const RIGHT = config.rightLinks.filter((l) => l.enabled);
+  const ann = config.announcement;
   const [drawer, setDrawer] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const fav = useFavorites();
@@ -67,6 +65,16 @@ export function Header({ siteName, phone, categories }: Props) {
 
   return (
     <>
+      {ann.enabled && ann.text && (
+        <div className="relative z-40 px-4 py-1.5 text-center text-[12px] font-medium" style={{ background: ann.background, color: ann.color }}>
+          {ann.text}
+          {ann.href && ann.linkLabel && (
+            <MenuLink href={ann.href} className="ml-2 underline underline-offset-2 hover:no-underline">
+              {ann.linkLabel} →
+            </MenuLink>
+          )}
+        </div>
+      )}
       <header
         className={cn(
           "sticky top-0 z-40 text-white backdrop-blur-md transition-all duration-300",
@@ -83,16 +91,17 @@ export function Header({ siteName, phone, categories }: Props) {
           </button>
 
           <nav className="hidden flex-1 items-center gap-6 px-5 text-[13px] lg:flex">
-            {LEFT.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} className={cn("flex items-center gap-1.5 transition hover:text-leaf", pathname.startsWith(href) && "text-leaf")}>
-                <Icon className="size-4" /> {label}
-              </Link>
+            {LEFT.map((l) => (
+              <MenuLink key={l.id} href={l.href} newTab={l.newTab} className={cn("relative flex items-center gap-1.5 transition hover:text-leaf", isActive(pathname, l.href) && "text-leaf")}>
+                <NavIcon name={l.icon} className="size-4" /> {l.label}
+                {l.badge && <span className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 rounded-sm bg-navy-deep px-1.5 py-px text-[9px] whitespace-nowrap text-white">{l.badge}</span>}
+              </MenuLink>
             ))}
           </nav>
 
           {/* Phones: compact white mark + name */}
           <Link href="/" className="mx-auto flex items-center px-3 lg:hidden" aria-label={`${siteName} home`}>
-            <Logo name={siteName} size={30} priority />
+            <Logo name={siteName} size={30} priority src={config.logoMark} />
           </Link>
 
           {/* Desktop: the round seal hangs below the bar like a badge, then tucks in on scroll */}
@@ -103,27 +112,27 @@ export function Header({ siteName, phone, categories }: Props) {
                 scrolled ? "pointer-events-none -translate-y-4 scale-50 opacity-0" : "opacity-100",
               )}
             >
-              <Logo name={siteName} variant="seal" size={124} priority />
+              <Logo name={siteName} variant="seal" size={124} priority src={config.logoSeal} />
             </span>
             <span className={cn("flex items-center transition-all duration-300", scrolled ? "opacity-100" : "pointer-events-none translate-y-2 opacity-0")}>
-              <Logo name={siteName} size={30} />
+              <Logo name={siteName} size={30} src={config.logoMark} />
             </span>
           </Link>
 
           <nav className="hidden flex-1 items-center justify-end gap-6 px-5 text-[13px] lg:flex">
-            {RIGHT.map(({ href, label, icon: Icon, badge }) => (
-              <Link key={href} href={href} className={cn("relative flex items-center gap-1.5 transition hover:text-leaf", pathname.startsWith(href) && "text-leaf")}>
-                <Icon className="size-4" /> {label}
-                {badge && (
+            {RIGHT.map((l) => (
+              <MenuLink key={l.id} href={l.href} newTab={l.newTab} className={cn("relative flex items-center gap-1.5 transition hover:text-leaf", isActive(pathname, l.href) && "text-leaf")}>
+                <NavIcon name={l.icon} className="size-4" /> {l.label}
+                {l.badge && (
                   <span className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 rounded-sm bg-navy-deep px-1.5 py-px text-[9px] whitespace-nowrap text-white">
-                    {badge}
+                    {l.badge}
                   </span>
                 )}
-              </Link>
+              </MenuLink>
             ))}
           </nav>
 
-          <Link
+          {config.showFavorites && <Link
             href="/favorites"
             className="relative hidden w-14 place-items-center border-l border-white/15 transition hover:bg-white/10 lg:grid"
             aria-label={`Favorites (${fav.ids.length})`}
@@ -133,14 +142,14 @@ export function Header({ siteName, phone, categories }: Props) {
             {fav.ids.length > 0 && (
               <span className="absolute top-2.5 right-2.5 grid min-w-4 place-items-center rounded-full bg-white px-1 text-[9px] font-bold text-ink">{fav.ids.length}</span>
             )}
-          </Link>
-          <button
+          </Link>}
+          {config.showSearch && <button
             onClick={() => setSearch(true)}
             className="grid w-14 place-items-center border-l border-white/15 transition hover:bg-white/10 active:bg-white/20"
             aria-label="Search"
           >
             <Search className="size-5" />
-          </button>
+          </button>}
         </div>
       </header>
 
@@ -161,11 +170,11 @@ export function Header({ siteName, phone, categories }: Props) {
           }}
           className="w-full max-w-2xl"
         >
-          <label className="mb-3 block text-sm tracking-widest text-white/60 uppercase">Search tiles</label>
+          <label className="mb-3 block text-sm tracking-widest text-white/60 uppercase">{config.searchTitle}</label>
           <div className="flex items-center border-b-2 border-white/70">
             <input
               ref={inputRef}
-              placeholder="Name, code, colour, size…"
+              placeholder={config.searchPlaceholder}
               className="w-full bg-transparent py-3 text-2xl text-white placeholder:text-white/40 focus:outline-none"
             />
             <button className="p-2 text-white" aria-label="Submit search">
@@ -173,7 +182,7 @@ export function Header({ siteName, phone, categories }: Props) {
             </button>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
-            {["Marble", "60x60 cm", "Bathroom", "Wood", "Glossy", "Outdoor"].map((t) => (
+            {config.searchSuggestions.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -203,13 +212,14 @@ export function Header({ siteName, phone, categories }: Props) {
         aria-hidden={!drawer}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-          <Logo name={siteName} />
+          <Logo name={siteName} src={config.logoMark} />
           <button onClick={() => setDrawer(false)} aria-label="Close menu" className="rounded-full p-2 hover:bg-white/10">
             <X className="size-5" />
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-6 py-6 text-sm">
-          <p className="mb-2 text-[11px] tracking-[0.2em] text-white/50 uppercase">Collections</p>
+          {config.drawer.showCollections && categories.length > 0 && <>
+          <p className="mb-2 text-[11px] tracking-[0.2em] text-white/50 uppercase">{config.drawer.collectionsTitle}</p>
           <ul className="mb-6 space-y-1">
             {categories.map((c) => (
               <li key={c.slug}>
@@ -219,41 +229,32 @@ export function Header({ siteName, phone, categories }: Props) {
               </li>
             ))}
           </ul>
-          <p className="mb-2 text-[11px] tracking-[0.2em] text-white/50 uppercase">Explore</p>
+          </>}
+          {config.drawer.links.some((l) => l.enabled) && <p className="mb-2 text-[11px] tracking-[0.2em] text-white/50 uppercase">{config.drawer.linksTitle}</p>}
           <ul className="space-y-1">
-            {[
-              ["/", "Home"],
-              ["/products", "All Products"],
-              ["/store-locator", "Store Locator"],
-              ["/catalogue", "Catalogue"],
-              ["/tiles-calculator", "Tiles Calculator"],
-              ["/projects", "Projects"],
-              ["/news", "News & Events"],
-              ["/news?type=Tiles+Care", "Tiles Care"],
-              ["/about", "About Us"],
-              ["/contact", "Contact Us"],
-            ].map(([href, label]) => (
-              <li key={href}>
-                <Link href={href} className="block py-1.5 text-white/85 transition hover:translate-x-1 hover:text-leaf">
-                  {label}
-                </Link>
+            {config.drawer.links.filter((l) => l.enabled).map((l) => (
+              <li key={l.id}>
+                <MenuLink href={l.href} newTab={l.newTab} className="flex items-center gap-2 py-1.5 text-white/85 transition hover:translate-x-1 hover:text-leaf">
+                  <NavIcon name={l.icon} className="size-4 opacity-70" /> {l.label}
+                  {l.badge && <span className="rounded-sm bg-leaf px-1.5 py-px text-[9px] text-white">{l.badge}</span>}
+                </MenuLink>
               </li>
             ))}
           </ul>
         </nav>
-        <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))]">
-          <a href={`tel:${phone.replace(/s/g, "")}`} className="flex items-center justify-center gap-2 rounded-lg bg-white/10 py-3 text-sm active:scale-95">
+        {(config.drawer.showCall || config.drawer.showWhatsApp) && phone && <div className={cn("grid gap-2 border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))]", config.drawer.showCall && config.drawer.showWhatsApp ? "grid-cols-2" : "grid-cols-1")}>
+          {config.drawer.showCall && <a href={`tel:${phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-lg bg-white/10 py-3 text-sm active:scale-95">
             <Phone className="size-4" /> Call us
-          </a>
-          <a
-            href={`https://wa.me/${phone.replace(/D/g, "")}`}
+          </a>}
+          {config.drawer.showWhatsApp && <a
+            href={`https://wa.me/${phone.replace(/\D/g, "")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 rounded-lg bg-[#25D366] py-3 text-sm font-medium active:scale-95"
           >
             WhatsApp
-          </a>
-        </div>
+          </a>}
+        </div>}
       </aside>
     </>
   );

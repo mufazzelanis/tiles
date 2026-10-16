@@ -3,13 +3,16 @@
 import { ArrowLeft, ArrowRight, MapPin, Phone } from "lucide-react";
 import Img from "@/components/Img";
 import type { ResourceDef } from "@/lib/resources";
+import type { SwatchColor } from "@/lib/colors";
+import type { ColorVariant } from "@/lib/types";
+import { SwatchDots } from "@/components/Swatch";
 import { formatPrice } from "@/lib/utils";
 
 type V = Record<string, unknown>;
 const s = (v: unknown) => (Array.isArray(v) ? String(v[0] ?? "") : String(v ?? ""));
 
 /** Renders the record roughly the way the public website will show it. */
-export function LivePreview({ def, values, categoryName }: { def: ResourceDef; values: V; categoryName?: string }) {
+export function LivePreview({ def, values, categoryName, colors = [] }: { def: ResourceDef; values: V; categoryName?: string; colors?: SwatchColor[] }) {
   const title = s(values[def.titleField]) || `Untitled ${def.singular.toLowerCase()}`;
   const image = s(values.image ?? values.images ?? values.cover);
 
@@ -28,7 +31,10 @@ export function LivePreview({ def, values, categoryName }: { def: ResourceDef; v
           <ArrowRight className="absolute top-1/2 right-2 size-3 -translate-y-1/2 text-white/70" />
         </div>
       );
-    case "products":
+    case "products": {
+      const byId = new Map(colors.map((c) => [c.id, c]));
+      const variants = Array.isArray(values.colorVariants) ? (values.colorVariants as ColorVariant[]) : [];
+      const shades = variants.map((v) => byId.get(v.colorId)).filter((c): c is SwatchColor => !!c);
       return (
         <div className="mx-auto max-w-[200px]">
           <div className="relative aspect-square overflow-hidden bg-slate-100">
@@ -40,8 +46,10 @@ export function LivePreview({ def, values, categoryName }: { def: ResourceDef; v
           <p className="text-[11px] text-slate-500">{title}</p>
           <span className="my-1.5 block h-0.5 w-6 bg-gradient-to-r from-gold-500 from-50% to-slate-200 to-50%" />
           <p className="text-[11px] font-semibold text-slate-700">{formatPrice(Number(values.price ?? 0))}</p>
+          {shades.length > 0 && <SwatchDots colors={shades} size={13} className="mt-1.5 text-slate-500" />}
         </div>
       );
+    }
     case "stores":
       return (
         <div className="rounded-lg border border-slate-200 p-4">

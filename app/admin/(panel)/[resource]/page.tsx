@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions";
 import { getResource, type ResourceKey } from "@/lib/resources";
 import { LinkButton, PageHeader } from "@/components/admin/ui";
 import { ResourceTable } from "@/components/admin/ResourceTable";
+import { toSwatch } from "@/lib/colors";
 
 export async function generateMetadata({ params }: PageProps<"/admin/[resource]">): Promise<Metadata> {
   const def = getResource((await params).resource);
@@ -41,7 +42,7 @@ export default async function ResourceListPage({ params }: PageProps<"/admin/[re
           )
         }
       />
-      <ResourceTable resourceKey={def.key} rows={slim} categories={categories} perms={perms} />
+      <ResourceTable resourceKey={def.key} rows={slim} categories={categories} colors={db.colors.map(toSwatch)} perms={perms} />
     </>
   );
 }

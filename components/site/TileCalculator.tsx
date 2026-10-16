@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Calculator } from "lucide-react";
+import { Calculator, ShoppingBag } from "lucide-react";
+import { openQuote } from "@/lib/client-store";
 
 const SQFT_PER_SQM = 10.7639;
 
@@ -11,11 +12,14 @@ export function TileCalculator({
   piecesPerBox: initialPieces = 4,
   price = 0,
   compact = false,
+  orderable = false,
 }: {
   sqftPerBox?: number;
   piecesPerBox?: number;
   price?: number;
   compact?: boolean;
+  /** show an "Order these boxes" button that opens the quote popup */
+  orderable?: boolean;
 }) {
   const [unit, setUnit] = useState<"ft" | "m">("ft");
   const [length, setLength] = useState(12);
@@ -83,6 +87,15 @@ export function TileCalculator({
         <p className="mt-4 bg-mist px-3 py-2 text-center text-[13px] text-ink">
           Estimated cost: <b>৳ {cost.toLocaleString("en-IN")}</b>
         </p>
+      )}
+      {orderable && boxes > 0 && (
+        <button
+          type="button"
+          onClick={() => openQuote({ boxes, area: Math.round(areaSqft * 10) / 10 })}
+          className="mt-3 flex w-full items-center justify-center gap-2 bg-navy px-4 py-3 text-[12px] tracking-wider text-white uppercase transition hover:bg-navy-deep"
+        >
+          <ShoppingBag className="size-4" /> Order these {boxes} boxes
+        </button>
       )}
     </div>
   );

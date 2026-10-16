@@ -1,9 +1,10 @@
 import path from "node:path";
-import mysql, { type Pool, type PoolConnection, type RowDataPacket } from "mysql2/promise";
-import { createSeed } from "./seed";
+import mysql, { type Pool, type PoolConnection, type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
+import { createSeed, defaultColors } from "./seed";
 import { hashPassword } from "./password";
 import { columnSql, createTableSql, ORDER_BY, SETTINGS_TABLE_SQL, TABLES, type ColKind } from "./schema";
-import { BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
+import { ACTIONS, BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
+import { DEFAULT_PRODUCT_COLORS, FAMILY_DEFAULT } from "./colors";
 import type { Collection, Database, Settings } from "./types";
 
 /**
@@ -31,7 +32,7 @@ function config() {
   };
 }
 
-const g = globalThis as unknown as { __tilesPool?: Pool; __tilesReady?: Promise<void> };
+const g = globalThis as unknown as { __tilesPool?: Pool; __tilesReady?: Promise<void>; __tilesSchema?: string };
 
 function pool() {
   g.__tilesPool ??= mysql.createPool({
@@ -58,6 +59,8 @@ async function ensureSchema() {
   await migrate(db);
 
   const [rows] = await db.query<RowDataPacket[]>("SELECT COUNT(*) AS n FROM `users`");
+  // existing site upgraded to tile colours: add the starter palette, link products, grant access
+  if (Number(rows[0].n) > 0) await introduceColors(db);
   if (Number(rows[0].n) === 0) {
     const email = process.env.ADMIN_EMAIL || "admin@tilora.com";
     const password = process.env.ADMIN_PASSWORD || "admin123";
@@ -66,6 +69,7 @@ async function ensureSchema() {
     try {
       await conn.beginTransaction();
       await saveSettings(conn, seed.settings);
+      await conn.query("INSERT IGNORE INTO `settings` (`key`, `value`) VALUES (?, ?)", [COLORS_MIGRATION, new Date().toISOString()]);
       for (const t of COLLECTIONS) await upsert(conn, t, seed[t] as unknown as Record<string, unknown>[]);
       await conn.commit();
     } catch (e) {
@@ -83,7 +87,13 @@ async function migrate(db: Pool) {
     const [cols] = await db.query<RowDataPacket[]>(`SHOW COLUMNS FROM \`${t}\``);
     const have = new Set(cols.map((c) => String(c.Field)));
     for (const [name, kind] of Object.entries(TABLES[t])) {
-      if (!have.has(name)) await db.query(`ALTER TABLE \`${t}\` ADD COLUMN ${columnSql(name, kind)}`);
+      if (have.has(name)) continue;
+      try {
+        await db.query(`ALTER TABLE \`${t}\` ADD COLUMN ${columnSql(name, kind)}`);
+      } catch (e) {
+        // another process (e.g. a parallel build worker) added it first
+        if ((e as { code?: string }).code !== "ER_DUP_FIELDNAME") throw e;
+      }
     }
     // users v1 stored a plain "admin" / "editor" role
     if (t === "users" && have.has("role")) {
@@ -101,7 +111,67 @@ async function migrate(db: Pool) {
   }
 }
 
+const COLORS_MIGRATION = "migration:colors";
+
+/**
+ * One-time upgrade for sites created before the colour system existed. Guarded by a
+ * marker row in `settings` and safe to run concurrently (build workers race on startup).
+ */
+async function introduceColors(db: Pool) {
+  const [done] = await db.query<RowDataPacket[]>("SELECT 1 FROM `settings` WHERE `key` = ?", [COLORS_MIGRATION]);
+  if (done.length) return;
+  const colors = defaultColors();
+  const bySlug = new Map(colors.map((c) => [c.slug, c]));
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    // the marker row is claimed first; a concurrent run blocks here, then sees it and stops
+    const [claim] = await conn.query<ResultSetHeader>("INSERT IGNORE INTO `settings` (`key`, `value`) VALUES (?, ?)", [COLORS_MIGRATION, new Date().toISOString()]);
+    if (claim.affectedRows === 0) {
+      await conn.rollback();
+      return;
+    }
+    const [existing] = await conn.query<RowDataPacket[]>("SELECT COUNT(*) AS n FROM `colors`");
+    if (Number(existing[0].n) === 0) await upsert(conn, "colors", colors as unknown as Record<string, unknown>[]);
+
+    const [products] = await conn.query<RowDataPacket[]>("SELECT `id`, `name`, `color`, `colorVariants`, `images` FROM `products`");
+    for (const p of products) {
+      if ((fromSql("json", p.colorVariants) as unknown[]).length) continue;
+      const images = fromSql("json", p.images) as string[];
+      const slugs = DEFAULT_PRODUCT_COLORS[String(p.name)] ?? [FAMILY_DEFAULT[String(p.color)]].filter(Boolean);
+      const shades = slugs.map((s) => bySlug.get(s)).filter((c) => !!c);
+      if (!shades.length) continue;
+      const variants = shades.map((c, i) => ({ colorId: c.id, image: i === 0 ? (images[0] ?? "") : "" }));
+      await conn.query("UPDATE `products` SET `colorVariants` = ?, `color` = ? WHERE `id` = ?", [
+        JSON.stringify(variants), shades.map((c) => c.name).join(", "), p.id,
+      ]);
+    }
+
+    // whoever could manage products can now manage colours too
+    const [roles] = await conn.query<RowDataPacket[]>("SELECT `id`, `permissions` FROM `roles`");
+    for (const r of roles) {
+      const perms = fromSql("json", r.permissions) as string[];
+      if (perms.includes("*")) continue;
+      const add = ACTIONS.filter((a) => perms.includes(`products.${a}`) && !perms.includes(`colors.${a}`)).map((a) => `colors.${a}`);
+      if (add.length) await conn.query("UPDATE `roles` SET `permissions` = ? WHERE `id` = ?", [JSON.stringify([...perms, ...add]), r.id]);
+    }
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Changes whenever the table definitions or migrations change, so a running dev server re-checks the schema. */
+const SCHEMA_VERSION = `${COLORS_MIGRATION}:${JSON.stringify(TABLES)}`;
+
 function ready() {
+  if (g.__tilesSchema !== SCHEMA_VERSION) {
+    g.__tilesSchema = SCHEMA_VERSION;
+    g.__tilesReady = undefined;
+  }
   g.__tilesReady ??= ensureSchema().catch((e) => {
     g.__tilesReady = undefined; // retry on next request
     throw new Error(`MySQL connection failed — is MySQL running and are the MYSQL_* env vars correct? (${(e as Error).message})`);
@@ -171,6 +241,25 @@ async function load(conn: Pool | PoolConnection): Promise<Database> {
 export async function getDb(): Promise<Database> {
   await ready();
   return load(pool());
+}
+
+/**
+ * Standalone JSON values in the `settings` table (besides the public "site" row),
+ * e.g. tracking config that must never reach the browser.
+ */
+export async function getSetting<T>(key: string): Promise<T | null> {
+  await ready();
+  const [rows] = await pool().query<RowDataPacket[]>("SELECT `value` FROM `settings` WHERE `key` = ?", [key]);
+  try {
+    return rows[0] ? (JSON.parse(rows[0].value) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setSetting(key: string, value: unknown) {
+  await ready();
+  await pool().query("INSERT INTO `settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)", [key, JSON.stringify(value)]);
 }
 
 /* -------------------------------------------------------------- writes */
