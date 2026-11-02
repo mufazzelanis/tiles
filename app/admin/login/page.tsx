@@ -10,7 +10,6 @@ export const metadata: Metadata = { title: "Sign in", robots: { index: false } }
 export default async function LoginPage({ searchParams }: PageProps<"/admin/login">) {
   const { next } = await searchParams;
   const { settings } = await getDb();
-  const usingDefaults = !process.env.ADMIN_PASSWORD;
 
   return (
     <div className="grid min-h-screen bg-white lg:grid-cols-2">
@@ -31,12 +30,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/admin/logi
             <p className="mt-1 text-sm text-slate-500">Sign in to the {settings.siteName} admin console.</p>
           </div>
           <LoginForm next={typeof next === "string" ? next : ""} />
-          {usingDefaults && (
-            <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-              Demo login: <b>admin@tilora.com</b> / <b>admin123</b>. Set <code>ADMIN_EMAIL</code>, <code>ADMIN_PASSWORD</code> and{" "}
-              <code>SESSION_SECRET</code> in <code>.env.local</code> before going live.
-            </p>
-          )}
         </div>
       </div>
     </div>

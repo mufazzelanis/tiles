@@ -35,12 +35,14 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
       const byId = new Map(colors.map((c) => [c.id, c]));
       const variants = Array.isArray(values.colorVariants) ? (values.colorVariants as ColorVariant[]) : [];
       const shades = variants.map((v) => byId.get(v.colorId)).filter((c): c is SwatchColor => !!c);
+      const options = values.options as { sizes?: { name: string }[] } | undefined;
+      const size = options?.sizes?.[0]?.name || s(values.size);
       return (
         <div className="mx-auto max-w-[200px]">
           <div className="relative aspect-square overflow-hidden bg-slate-100">
             <Img src={image} alt="" fill sizes="200px" className="object-cover" />
             {Boolean(values.isNew) && <span className="absolute top-2 left-2 bg-gold-500 px-1.5 py-0.5 text-[9px] font-semibold text-white uppercase">New</span>}
-            {s(values.size) && <span className="absolute right-2 bottom-2 bg-white/90 px-1.5 py-0.5 text-[9px] text-slate-800">{s(values.size)}</span>}
+            {size && <span className="absolute right-2 bottom-2 bg-white/90 px-1.5 py-0.5 text-[9px] text-slate-800">{size}</span>}
           </div>
           <p className="mt-2 text-[13px] font-bold text-slate-900">{categoryName || "Category"}</p>
           <p className="text-[11px] text-slate-500">{title}</p>

@@ -3,9 +3,18 @@ import { getDb, getSetting } from "./db";
 import { LAYOUT_KEY, normalizeLayout } from "./site-layout";
 import { toSwatch, type SwatchColor } from "./colors";
 import type { Product } from "./types";
+import { priceRange, pricedProduct, type PricedProduct } from "./pricing";
 
-/** A published product with its published colours resolved, in the admin's order. */
-export type SiteProduct = Product & { swatches: (SwatchColor & { photo: string; description: string })[] };
+/** A published product with its published colours resolved (admin order) and its pricing. */
+export type SiteProduct = Product & {
+  swatches: (SwatchColor & { photo: string; description: string; extra: number })[];
+  priced: PricedProduct;
+  /** cheapest / dearest box price over every option combination */
+  range: { min: number; max: number; varies: boolean };
+  /** every size and finish on offer (for filters and specs) */
+  sizes: string[];
+  finishes: string[];
+};
 
 /** Public-facing reads: only published rows, sorted for display. */
 export async function getSite() {
@@ -17,14 +26,21 @@ export async function getSite() {
   const colorById = new Map(colors.map((c) => [c.id, c]));
   const products: SiteProduct[] = db.products
     .filter((p) => p.active)
-    .map((p) => ({
-      ...p,
-      // hidden or deleted colours are dropped; "photo" is the product shot in that colour
-      swatches: p.colorVariants.flatMap((v) => {
-        const c = colorById.get(v.colorId);
-        return c ? [{ ...toSwatch(c), description: c.description, photo: v.image }] : [];
-      }),
-    }));
+    .map((p) => {
+      const priced = pricedProduct(p, colorById);
+      return {
+        ...p,
+        // hidden or deleted colours are dropped; "photo" is the product shot in that colour
+        swatches: p.colorVariants.flatMap((v) => {
+          const c = colorById.get(v.colorId);
+          return c ? [{ ...toSwatch(c), description: c.description, photo: v.image, extra: v.extra ?? 0 }] : [];
+        }),
+        priced,
+        range: priceRange(priced),
+        sizes: p.options.sizes.length ? p.options.sizes.map((s) => s.name) : [p.size].filter(Boolean),
+        finishes: p.options.finishes.length ? p.options.finishes.map((f) => f.name) : [p.finish].filter(Boolean),
+      };
+    });
   return {
     settings: db.settings,
     categories,
@@ -52,7 +68,8 @@ export async function getCatalog() {
     images: p.images.slice(0, 2),
     size: p.size,
     isNew: p.isNew,
-    price: p.price,
+    price: p.range.min || p.price,
+    priceFrom: p.range.varies,
     finish: p.finish,
     category: categoryById.get(p.categoryId)?.name,
   }));

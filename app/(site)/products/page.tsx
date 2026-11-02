@@ -14,6 +14,7 @@ import { TrackEvent } from "@/components/site/TrackEvent";
 export const metadata: Metadata = { title: "Products" };
 
 const PER_PAGE = 12;
+const unique = (list: string[]) => [...new Set(list.filter(Boolean))];
 const list = (v: string | string[] | undefined) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).filter(Boolean);
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
@@ -32,10 +33,10 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   };
 
   const matches = (p: SiteProduct, skip?: string) =>
-    (!q || [p.name, p.code, p.color, p.size, p.finish, p.description].join(" ").toLowerCase().includes(q)) &&
+    (!q || [p.name, p.code, p.color, ...p.sizes, ...p.finishes, ...p.options.designs.map((d) => d.name), p.description].join(" ").toLowerCase().includes(q)) &&
     (skip === "category" || !selected.category.length || selected.category.includes(categoryById.get(p.categoryId)?.slug ?? "")) &&
-    (skip === "size" || !selected.size.length || selected.size.includes(p.size)) &&
-    (skip === "finish" || !selected.finish.length || selected.finish.includes(p.finish)) &&
+    (skip === "size" || !selected.size.length || p.sizes.some((s) => selected.size.includes(s))) &&
+    (skip === "finish" || !selected.finish.length || p.finishes.some((f) => selected.finish.includes(f))) &&
     (skip === "color" || !selected.color.length || p.swatches.some((c) => selected.color.includes(c.slug))) &&
     (skip === "application" || !selected.application.length || selected.application.some((a) => p.applications.includes(a)));
 
@@ -45,8 +46,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
     new: (a, b) => b.createdAt.localeCompare(a.createdAt),
     popular: (a, b) => b.views - a.views,
     name: (a, b) => a.name.localeCompare(b.name),
-    "price-asc": (a, b) => (a.price || Infinity) - (b.price || Infinity),
-    "price-desc": (a, b) => b.price - a.price,
+    "price-asc": (a, b) => (a.range.min || Infinity) - (b.range.min || Infinity),
+    "price-desc": (a, b) => b.range.max - a.range.max,
   };
   filtered.sort(sorters[sort] ?? sorters.featured);
 
@@ -64,8 +65,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const groups = [
     facet("category", categories.map((c) => ({ value: c.slug, label: c.name })), (p, v) => categoryById.get(p.categoryId)?.slug === v),
     facet("application", APPLICATIONS.map((v) => ({ value: v, label: v })), (p, v) => p.applications.includes(v)),
-    facet("size", SIZES.map((v) => ({ value: v, label: v })), (p, v) => p.size === v),
-    facet("finish", FINISHES.map((v) => ({ value: v, label: v })), (p, v) => p.finish === v),
+    // standard values first, then any custom ones typed in the admin
+    facet("size", unique([...SIZES, ...products.flatMap((p) => p.sizes)]).map((v) => ({ value: v, label: v })), (p, v) => p.sizes.includes(v)),
+    facet("finish", unique([...FINISHES, ...products.flatMap((p) => p.finishes)]).map((v) => ({ value: v, label: v })), (p, v) => p.finishes.includes(v)),
     facet("color", colors.map((c) => ({ value: c.slug, label: c.name, swatch: toSwatch(c) })), (p, v) => p.swatches.some((c) => c.slug === v)),
   ];
 

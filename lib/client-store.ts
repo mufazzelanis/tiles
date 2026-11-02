@@ -81,15 +81,22 @@ const subscribeColor = (cb: () => void) => {
   return () => window.removeEventListener(COLOR_EVENT, cb);
 };
 
-/** The colour a visitor picked on a product page — shared by the swatches, gallery and quote popup. */
-export function useSelectedColor(productId: string, fallback = "") {
-  return useSyncExternalStore(subscribeColor, () => selectedColors.get(productId) ?? fallback, () => fallback);
+/**
+ * What a visitor picked on a product page, per option group ("color", "design",
+ * "finish", "size") — shared by the pickers, price, gallery, calculator and quote popup.
+ */
+export function useSelectedOption(productId: string, group: string, fallback = "") {
+  const key = `${productId}:${group}`;
+  return useSyncExternalStore(subscribeColor, () => selectedColors.get(key) ?? fallback, () => fallback);
 }
 
-export function setSelectedColor(productId: string, colorId: string) {
-  selectedColors.set(productId, colorId);
+export function setSelectedOption(productId: string, group: string, id: string) {
+  selectedColors.set(`${productId}:${group}`, id);
   window.dispatchEvent(new Event(COLOR_EVENT));
 }
+
+export const useSelectedColor = (productId: string, fallback = "") => useSelectedOption(productId, "color", fallback);
+export const setSelectedColor = (productId: string, colorId: string) => setSelectedOption(productId, "color", colorId);
 
 /* ------------------------------------------------------------ quote popup */
 

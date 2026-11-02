@@ -5,6 +5,7 @@ import { hashPassword } from "./password";
 import { columnSql, createTableSql, ORDER_BY, SETTINGS_TABLE_SQL, TABLES, type ColKind } from "./schema";
 import { ACTIONS, BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
 import { DEFAULT_PRODUCT_COLORS, FAMILY_DEFAULT } from "./colors";
+import { normalizeOptions } from "./pricing";
 import type { Collection, Database, Settings } from "./types";
 
 /**
@@ -230,9 +231,12 @@ async function load(conn: Pool | PoolConnection): Promise<Database> {
     COLLECTIONS.map(async (t) => {
       const cols = TABLES[t];
       const [rows] = await conn.query<RowDataPacket[]>(`SELECT * FROM \`${t}\`${ORDER_BY[t] ? ` ORDER BY ${ORDER_BY[t]}` : ""}`);
-      (out as unknown as Record<string, unknown[]>)[t] = rows.map((r) =>
-        Object.fromEntries(Object.entries(cols).map(([name, kind]) => [name, fromSql(kind, r[name])])),
-      );
+      (out as unknown as Record<string, unknown[]>)[t] = rows.map((r) => {
+        const row = Object.fromEntries(Object.entries(cols).map(([name, kind]) => [name, fromSql(kind, r[name])]));
+        // product options are an object; older rows hold nothing yet
+        if (t === "products") row.options = normalizeOptions(row.options);
+        return row;
+      });
     }),
   );
   return out;

@@ -18,7 +18,9 @@ export type FieldType =
   | "date"
   | "slug"
   /** colour variants picked from the Tile Colours library */
-  | "colors";
+  | "colors"
+  /** priced designs, finishes and sizes (see lib/pricing.ts) */
+  | "options";
 
 export interface FieldDef {
   name: string;
@@ -101,14 +103,13 @@ export const RESOURCES = {
       { name: "slug", label: "URL slug", type: "slug", from: "name" },
       { name: "code", label: "Product code / SKU", type: "text", required: true, placeholder: "NCP-6060-01" },
       { name: "categoryId", label: "Category", type: "select", source: "categories", required: true },
-      { name: "size", label: "Size", type: "select", options: SIZES, required: true },
-      { name: "finish", label: "Finish", type: "select", options: FINISHES, required: true },
       { name: "thickness", label: "Thickness", type: "text", placeholder: "9 mm" },
-      { name: "piecesPerBox", label: "Pieces / box", type: "number", min: 0 },
-      { name: "sqftPerBox", label: "Sqft / box", type: "number", min: 0 },
-      { name: "price", label: "Price per box (৳)", type: "number", min: 0, help: "Leave 0 to show “Price on request”" },
+      { name: "price", label: "Base price per box (৳)", type: "number", min: 0, help: "Design, finish, size and colour extras are added to this. 0 = “Price on request”." },
+      { name: "piecesPerBox", label: "Pieces / box", type: "number", min: 0, help: "Default — a size can set its own" },
+      { name: "sqftPerBox", label: "Sqft / box", type: "number", min: 0, help: "Default — a size can set its own" },
       { name: "applications", label: "Application areas", type: "multiselect", options: APPLICATIONS, full: true },
-      { name: "colorVariants", label: "Available colours", type: "colors", full: true, help: "Customers pick one of these when they ask for a quote. Add a photo per colour to switch the gallery." },
+      { name: "options", label: "Designs, finishes & sizes", type: "options", full: true, help: "The first option in each list is selected by default on the website." },
+      { name: "colorVariants", label: "Available colours", type: "colors", full: true, help: "Customers pick one of these. Set a price extra and a photo per colour if needed." },
       { name: "description", label: "Description", type: "textarea", full: true },
       { name: "images", label: "Gallery", type: "images", full: true, help: "First image is the cover" },
       activeField,

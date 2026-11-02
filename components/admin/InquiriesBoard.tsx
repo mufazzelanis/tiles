@@ -185,6 +185,23 @@ export function InquiriesBoard({
                   );
                 })()}
               </div>
+              {(open.options || open.unitPrice > 0) && (
+                <div className="rounded-lg border border-primary-100 bg-primary-50/40 p-3 text-sm">
+                  {open.options && (
+                    <p className="flex flex-wrap gap-1.5">
+                      {open.options.split(" · ").map((o) => (
+                        <span key={o} className="rounded-md bg-white px-2 py-0.5 text-xs text-slate-700 ring-1 ring-slate-200">{o}</span>
+                      ))}
+                    </p>
+                  )}
+                  {open.unitPrice > 0 && (
+                    <p className="mt-2 flex items-baseline justify-between gap-3 text-slate-600">
+                      <span>৳{open.unitPrice.toLocaleString("en-IN")} / box{open.boxes > 0 && <> × {open.boxes}</>}</span>
+                      {open.boxes > 0 && <b className="text-base text-slate-900">≈ ৳{(open.unitPrice * open.boxes).toLocaleString("en-IN")}</b>}
+                    </p>
+                  )}
+                </div>
+              )}
               {(open.boxes > 0 || open.location) && (
                 <dl className="grid grid-cols-3 divide-x divide-slate-100 rounded-lg border border-slate-200 text-center">
                   <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Boxes</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.boxes || "—"}</dd></div>

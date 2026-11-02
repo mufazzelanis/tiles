@@ -2,28 +2,34 @@
 
 import { useState } from "react";
 import Img from "@/components/Img";
-import { useSelectedColor } from "@/lib/client-store";
+import { useSelectedColor, useSelectedOption } from "@/lib/client-store";
 import { cn } from "@/lib/utils";
 
 /**
- * Product photos with hover zoom. When the product has colour photos, picking a
- * colour (anywhere on the page) switches the main image to that colour.
+ * Product photos with hover zoom. Picking a design with its own photos swaps the gallery
+ * to that design; picking a colour with a photo shows that photo (anywhere on the page).
  */
-export function Gallery({ images, alt, productId = "", colorPhotos = [] }: {
+export function Gallery({ images: mainImages, alt, productId = "", colorPhotos = [], designPhotos = [] }: {
   images: string[];
   alt: string;
   productId?: string;
   colorPhotos?: { colorId: string; photo: string; name: string }[];
+  designPhotos?: { designId: string; images: string[]; name: string }[];
 }) {
   const selectedColor = useSelectedColor(productId, colorPhotos[0]?.colorId ?? "");
   const colorPhoto = colorPhotos.find((c) => c.colorId === selectedColor)?.photo ?? "";
+  // a design with its own photos replaces the main gallery while it's selected
+  const selectedDesign = useSelectedOption(productId, "design", designPhotos[0]?.designId ?? "");
+  const designImages = (designPhotos.find((d) => d.designId === selectedDesign) ?? designPhotos[0])?.images ?? [];
+  const images = designImages.length ? designImages : mainImages;
   // colour photos that aren't already in the gallery become extra thumbnails
   const all = [...images, ...colorPhotos.map((c) => c.photo).filter((p) => p && !images.includes(p))];
 
   // follow the colour choice until the visitor clicks a thumbnail themselves
+  const choice = `${selectedDesign}|${selectedColor}`;
   const [picked, setPicked] = useState<{ src: string; forColor: string } | null>(null);
-  const manual = picked && picked.forColor === selectedColor ? picked.src : null;
-  const src = manual ?? (colorPhoto || all[0] || "");
+  const manual = picked && picked.forColor === choice && all.includes(picked.src) ? picked.src : null;
+  const src = manual ?? ((designImages.length ? designImages[0] : colorPhoto) || all[0] || "");
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const label = colorPhotos.find((c) => c.photo === src)?.name;
 
@@ -56,7 +62,7 @@ export function Gallery({ images, alt, productId = "", colorPhotos = [] }: {
           {all.map((img, i) => (
             <button
               key={img + i}
-              onClick={() => setPicked({ src: img, forColor: selectedColor })}
+              onClick={() => setPicked({ src: img, forColor: choice })}
               className={cn("relative aspect-square overflow-hidden border-2 transition", img === src ? "border-brand" : "border-transparent opacity-70 hover:opacity-100")}
               aria-label={`Show image ${i + 1}`}
             >

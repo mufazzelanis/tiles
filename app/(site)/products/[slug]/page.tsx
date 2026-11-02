@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Box, Droplets, Layers, MapPin, MessageSquareText, Phone, Ruler, ShoppingBag } from "lucide-react";
 import { getCatalog, getSite } from "@/lib/queries";
-import { formatPrice } from "@/lib/utils";
 import { Gallery } from "@/components/site/Gallery";
 import { ColorPicker } from "@/components/site/ColorPicker";
 import { QuoteButton, QuoteDialog, WhatsAppButton } from "@/components/site/QuoteDialog";
-import { TileCalculator } from "@/components/site/TileCalculator";
+import { LivePrice, OptionPicker, ProductCalculator } from "@/components/site/ProductOptions";
 import { ProductCard } from "@/components/site/ProductCard";
 import { TrackView } from "@/components/site/TrackView";
 import { TrackEvent } from "@/components/site/TrackEvent";
@@ -46,10 +45,10 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
     .slice(0, 4);
 
   const specs = [
-    { Icon: Ruler, label: "Size", value: product.size },
-    { Icon: Droplets, label: "Finish", value: product.finish },
+    { Icon: Ruler, label: product.sizes.length > 1 ? "Sizes" : "Size", value: product.sizes.join(" / ") },
+    { Icon: Droplets, label: product.finishes.length > 1 ? "Finishes" : "Finish", value: product.finishes.join(" / ") },
     { Icon: Layers, label: "Thickness", value: product.thickness },
-    { Icon: Box, label: "Per box", value: `${product.piecesPerBox} pcs · ${product.sqftPerBox} sqft` },
+    { Icon: Box, label: "Designs", value: product.options.designs.length > 1 ? `${product.options.designs.length} designs` : "" },
   ].filter((s) => s.value);
 
   const jsonLd = {
@@ -60,7 +59,13 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
     image: product.images,
     description: product.description,
     brand: { "@type": "Brand", name: settings.siteName },
-    ...(product.price ? { offers: { "@type": "Offer", price: product.price, priceCurrency: "BDT", availability: "https://schema.org/InStock" } } : {}),
+    ...(product.range.min
+      ? {
+          offers: product.range.varies
+            ? { "@type": "AggregateOffer", lowPrice: product.range.min, highPrice: product.range.max, priceCurrency: "BDT", availability: "https://schema.org/InStock" }
+            : { "@type": "Offer", price: product.range.min, priceCurrency: "BDT", availability: "https://schema.org/InStock" },
+        }
+      : {}),
   };
 
   return (
@@ -69,11 +74,12 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
       <TrackEvent
         name="ViewContent"
         trackKey={product.id}
-        data={{ content_ids: [product.id], content_type: "product", content_name: product.name, content_category: category?.name, value: product.price || undefined, currency: product.price ? "BDT" : undefined }}
+        data={{ content_ids: [product.id], content_type: "product", content_name: product.name, content_category: category?.name, value: product.range.min || undefined, currency: product.range.min ? "BDT" : undefined }}
       />
       <QuoteDialog
         product={{ id: product.id, name: product.name, code: product.code, size: product.size, finish: product.finish, price: product.price, sqftPerBox: product.sqftPerBox, piecesPerBox: product.piecesPerBox, image: product.images[0] ?? "" }}
         colors={product.swatches}
+        priced={product.priced}
         phone={settings.phone}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
@@ -91,7 +97,9 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
         </nav>
 
         <div className="grid gap-12 lg:grid-cols-2">
-          <Gallery images={product.images} alt={product.name} productId={product.id} colorPhotos={product.swatches.map((c) => ({ colorId: c.id, photo: c.photo, name: c.name }))} />
+          <Gallery images={product.images} alt={product.name} productId={product.id} colorPhotos={product.swatches.map((c) => ({ colorId: c.id, photo: c.photo, name: c.name }))}
+            designPhotos={product.options.designs.map((d) => ({ designId: d.id, images: d.images, name: d.name }))}
+          />
 
           <div>
             <p className="text-[12px] tracking-[0.2em] text-brand uppercase">{category?.name}</p>
@@ -105,10 +113,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
             <p className="mt-1 text-sm text-muted">Code: {product.code}</p>
             <span className="leaf-dash my-5" />
             <p className="text-[15px] leading-relaxed text-neutral-600">{product.description}</p>
-            <p className="mt-5 text-2xl font-semibold text-ink">
-              {formatPrice(product.price)}
-              {product.price > 0 && <span className="text-sm font-normal text-muted"> / box</span>}
-            </p>
+            <LivePrice productId={product.id} priced={product.priced} className="mt-5" />
 
             <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-3">
               {specs.map(({ Icon, label, value }) => (
@@ -121,11 +126,12 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
               ))}
             </dl>
 
-            {product.swatches.length > 0 && (
-              <div className="mt-7">
-                <ColorPicker productId={product.id} colors={product.swatches} />
-              </div>
-            )}
+            <div className="mt-7 space-y-6">
+              <OptionPicker productId={product.id} priced={product.priced} group="design" />
+              <OptionPicker productId={product.id} priced={product.priced} group="finish" />
+              <OptionPicker productId={product.id} priced={product.priced} group="size" />
+              {product.swatches.length > 0 && <ColorPicker productId={product.id} colors={product.swatches} showExtras={product.price > 0} />}
+            </div>
 
             {product.applications.length > 0 && (
               <div className="mt-6">
@@ -154,14 +160,22 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
         <div className="mt-16 grid gap-10 lg:grid-cols-2" id="inquiry">
           <div>
             <h2 className="mb-5 font-display text-xl font-semibold text-ink">How many boxes do I need?</h2>
-            <TileCalculator sqftPerBox={product.sqftPerBox} piecesPerBox={product.piecesPerBox} price={product.price} orderable />
+            <ProductCalculator productId={product.id} priced={product.priced} />
           </div>
           <div className="flex flex-col border border-neutral-200 bg-mist/60 p-6 sm:p-8">
             <p className="text-[11px] tracking-[0.2em] text-brand uppercase">Ready to order?</p>
             <h2 className="mt-1 font-display text-2xl font-semibold text-ink">Get a quote in under a minute</h2>
             <ol className="mt-6 space-y-4">
               {[
-                ["Choose your colour", product.swatches.length ? `${product.swatches.length} colour${product.swatches.length > 1 ? "s" : ""} available` : "We'll confirm the shade with you"],
+                [
+                  "Choose your options",
+                  [
+                    product.options.designs.length > 1 && `${product.options.designs.length} designs`,
+                    product.sizes.length > 1 && `${product.sizes.length} sizes`,
+                    product.finishes.length > 1 && `${product.finishes.length} finishes`,
+                    product.swatches.length > 1 && `${product.swatches.length} colours`,
+                  ].filter(Boolean).join(" · ") || "We'll confirm the details with you",
+                ],
                 ["Tell us how much", "Boxes, or let us work it out from your room size"],
                 ["Leave your number", "Our sales team calls to confirm price and delivery"],
               ].map(([t, d], i) => (

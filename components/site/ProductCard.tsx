@@ -8,10 +8,18 @@ import { SwatchDots } from "@/components/Swatch";
 import type { SwatchColor } from "@/lib/colors";
 
 /** The fields a card needs — also used by client lists (favorites, recently viewed). */
-export type CardProduct = Pick<Product, "id" | "slug" | "name" | "images" | "size" | "isNew" | "price" | "finish"> & { swatches?: SwatchColor[] };
+export type CardProduct = Pick<Product, "id" | "slug" | "name" | "images" | "size" | "isNew" | "price" | "finish"> & {
+  swatches?: SwatchColor[];
+  /** price varies by design / size / colour — shown as "From ৳…" */
+  priceFrom?: boolean;
+  /** full site products carry their price range */
+  range?: { min: number; varies: boolean };
+};
 
 export function ProductCard({ product, categoryName }: { product: CardProduct; categoryName?: string }) {
   const [cover, hover] = product.images;
+  const price = product.range?.min || product.price;
+  const from = product.priceFrom ?? product.range?.varies ?? false;
   return (
     <Link href={`/products/${product.slug}`} className="group block active:scale-[0.98] transition-transform">
       <div className="relative aspect-square overflow-hidden bg-mist">
@@ -45,7 +53,12 @@ export function ProductCard({ product, categoryName }: { product: CardProduct; c
       {categoryName && <p className="truncate text-[12px] text-muted">{product.name}</p>}
       <div className="mt-1.5 flex items-center justify-between gap-2">
         <span className="leaf-dash" />
-        {product.price > 0 && <span className="text-[11px] font-semibold text-ink">{formatPrice(product.price)}</span>}
+        {price > 0 && (
+          <span className="text-[11px] font-semibold text-ink">
+            {from && <span className="font-normal text-muted">From </span>}
+            {formatPrice(price)}
+          </span>
+        )}
       </div>
       {!!product.swatches?.length && <SwatchDots colors={product.swatches} max={5} size={14} className="mt-2 text-ink" />}
       <span className="mt-1.5 inline-block text-[11px] font-bold text-brand group-hover:underline">learn more</span>

@@ -15,6 +15,7 @@ import { ALL_PERMISSIONS, can, OWNER_ROLE_ID, passwordProblems, ROLE_COLORS } fr
 import { newId, slugify } from "@/lib/utils";
 import { COLOR_FAMILIES, normalizeHex, PATTERNS } from "@/lib/colors";
 import { LAYOUT_KEY, normalizeLayout } from "@/lib/site-layout";
+import { normalizeOptions, type ProductOptions } from "@/lib/pricing";
 import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
 import type { ColorPattern, ColorVariant, Database, InquiryStatus, Settings, TileColor, User, UserStatus } from "@/lib/types";
 
@@ -141,10 +142,17 @@ function readField(f: FieldDef, formData: FormData): unknown {
       try {
         const list = JSON.parse(String(formData.get(f.name) ?? "[]"));
         return Array.isArray(list)
-          ? list.filter((v) => v && typeof v.colorId === "string").map((v) => ({ colorId: String(v.colorId), image: String(v.image ?? "").trim() }))
+          ? list.filter((v) => v && typeof v.colorId === "string").map((v) => ({ colorId: String(v.colorId), image: String(v.image ?? "").trim(), extra: Math.round((Number(v.extra) || 0) * 100) / 100 }))
           : [];
       } catch {
         return [];
+      }
+    }
+    case "options": {
+      try {
+        return normalizeOptions(JSON.parse(String(formData.get(f.name) ?? "{}")));
+      } catch {
+        return normalizeOptions({});
       }
     }
     case "date": {
@@ -190,6 +198,10 @@ export async function saveResource(_: FormState, formData: FormData): Promise<Fo
       const seen = new Set<string>();
       data.colorVariants = (data.colorVariants as ColorVariant[]).filter((v) => known.has(v.colorId) && !seen.has(v.colorId) && seen.add(v.colorId));
       data.color = (data.colorVariants as ColorVariant[]).map((v) => known.get(v.colorId)!.name).join(", ");
+      // the first size / finish is the product's main one (filters, admin table, search)
+      const options = data.options as ProductOptions;
+      data.size = options.sizes[0]?.name ?? "";
+      data.finish = options.finishes[0]?.name ?? "";
     }
     const now = new Date().toISOString();
     if (id) {

@@ -46,7 +46,7 @@ export function defaultColors(): TileColor[] {
 const colors = defaultColors();
 const colorBySlug = new Map(colors.map((c) => [c.slug, c]));
 
-type P = Omit<Product, "id" | "slug" | "views" | "createdAt" | "updatedAt" | "active" | "colorVariants">;
+type P = Omit<Product, "id" | "slug" | "views" | "createdAt" | "updatedAt" | "active" | "colorVariants" | "options">;
 const productSeed: P[] = [
   { name: "Statuario Bianco", code: "NCP-6060-01", categoryId: "cat-ncp", size: "60x60 cm", finish: "Polished", color: "White", thickness: "9 mm", applications: ["Floor", "Living Room", "Bedroom"], piecesPerBox: 4, sqftPerBox: 15.5, price: 2150, images: [IMG.bedroom, IMG.livingRoom], description: "Classic Statuario marble look with soft grey veining and a nano crystal polished surface.", featured: true, isNew: true },
   { name: "Calacatta Gold", code: "NCP-6012-02", categoryId: "cat-ncp", size: "60x120 cm", finish: "Polished", color: "White", thickness: "9 mm", applications: ["Floor", "Living Room"], piecesPerBox: 2, sqftPerBox: 15.5, price: 3400, images: [IMG.livingRoom2, IMG.lounge], description: "Bold gold veining on a warm white base, made for statement living spaces.", featured: true, isNew: false },
@@ -68,7 +68,8 @@ const products: Product[] = productSeed.map((p, i) => {
     ...p,
     color: shades.map((c) => c.name).join(", ") || p.color,
     // the first shade uses the product's cover photo
-    colorVariants: shades.map((c, n) => ({ colorId: c.id, image: n === 0 ? (p.images[0] ?? "") : "" })),
+    colorVariants: shades.map((c, n) => ({ colorId: c.id, image: n === 0 ? (p.images[0] ?? "") : "", extra: 0 })),
+    options: { designs: [], finishes: [{ id: "f1", name: p.finish, extra: 0 }], sizes: [{ id: "s1", name: p.size, extra: 0, piecesPerBox: 0, sqftPerBox: 0 }] },
     id: `prd-${i + 1}`,
     slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     views: Math.round(40 + Math.random() * 400),
@@ -161,9 +162,9 @@ export function createSeed(adminHash: string, adminEmail: string): Database {
       { id: "sus-3", title: "Water", heading: "Zero liquid discharge", body: "Process water is treated and recycled in a closed loop, so no untreated water ever leaves the plant.", image: IMG.house, order: 3, active: true, ...stamp },
     ],
     inquiries: [
-      { id: "inq-1", name: "Rahim Uddin", email: "rahim@example.com", phone: "01711000001", subject: "Bulk order for apartment project", message: "We need around 12,000 sqft of 60x60 polished tiles. Please share dealer pricing.", productId: "prd-1", colorId: "clr-statuario-white", colorName: "Statuario White", colorHex: "#f4f2ee", boxes: 780, area: 12000, location: "Gulshan, Dhaka", extra: [], status: "new", notes: "", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
-      { id: "inq-2", name: "Nusrat Jahan", email: "nusrat@example.com", phone: "01811000002", subject: "Bathroom tiles availability", message: "Is Armani Grey available in Sylhet display center?", productId: "prd-4", colorId: "clr-armani-grey", colorName: "Armani Grey", colorHex: "#a9a6a1", boxes: 0, area: 0, location: "Sylhet", extra: [], status: "in-progress", notes: "Forwarded to Sylhet dealer.", createdAt: daysAgo(4), updatedAt: daysAgo(3) },
-      { id: "inq-3", name: "Kamal Hossain", email: "kamal@example.com", phone: "01911000003", subject: "Dealership", message: "I want to become a dealer in Rangpur.", productId: "", colorId: "", colorName: "", colorHex: "", boxes: 0, area: 0, location: "Rangpur", extra: [], status: "closed", notes: "", createdAt: daysAgo(9), updatedAt: daysAgo(6) },
+      { id: "inq-1", name: "Rahim Uddin", email: "rahim@example.com", phone: "01711000001", subject: "Bulk order for apartment project", message: "We need around 12,000 sqft of 60x60 polished tiles. Please share dealer pricing.", productId: "prd-1", colorId: "clr-statuario-white", colorName: "Statuario White", colorHex: "#f4f2ee", boxes: 780, area: 12000, location: "Gulshan, Dhaka", extra: [], options: "", unitPrice: 0, status: "new", notes: "", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
+      { id: "inq-2", name: "Nusrat Jahan", email: "nusrat@example.com", phone: "01811000002", subject: "Bathroom tiles availability", message: "Is Armani Grey available in Sylhet display center?", productId: "prd-4", colorId: "clr-armani-grey", colorName: "Armani Grey", colorHex: "#a9a6a1", boxes: 0, area: 0, location: "Sylhet", extra: [], options: "", unitPrice: 0, status: "in-progress", notes: "Forwarded to Sylhet dealer.", createdAt: daysAgo(4), updatedAt: daysAgo(3) },
+      { id: "inq-3", name: "Kamal Hossain", email: "kamal@example.com", phone: "01911000003", subject: "Dealership", message: "I want to become a dealer in Rangpur.", productId: "", colorId: "", colorName: "", colorHex: "", boxes: 0, area: 0, location: "Rangpur", extra: [], options: "", unitPrice: 0, status: "closed", notes: "", createdAt: daysAgo(9), updatedAt: daysAgo(6) },
     ],
     activity: [],
   };

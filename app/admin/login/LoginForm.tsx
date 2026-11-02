@@ -31,7 +31,7 @@ export function LoginForm({ next }: { next: string }) {
         </span>
       </label>
       <label className="flex items-center gap-2 text-sm text-slate-600">
-        <input type="checkbox" name="remember" className="size-4 rounded accent-primary-600" /> Keep me signed in for 30 days
+        <input type="checkbox" name="remember" className="size-4 rounded accent-primary-600" /> Keep me signed in
       </label>
       <button
         disabled={pending}

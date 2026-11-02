@@ -1,3 +1,4 @@
+import type { ProductOptions } from "./pricing";
 export type ID = string;
 
 export interface Settings {
@@ -64,6 +65,8 @@ export interface TileColor {
 export interface ColorVariant {
   colorId: ID;
   image: string;
+  /** added to the base price when this colour is picked (৳ per box) */
+  extra?: number;
 }
 
 export interface Product {
@@ -77,6 +80,8 @@ export interface Product {
   /** names of the available colours (kept in sync with colorVariants, used for search) */
   color: string;
   colorVariants: ColorVariant[];
+  /** designs, finishes and sizes the customer can pick, each with a price extra */
+  options: ProductOptions;
   thickness: string;
   applications: string[];
   piecesPerBox: number;
@@ -189,6 +194,10 @@ export interface Inquiry {
   location: string;
   /** answers to custom contact-form fields */
   extra: { label: string; value: string }[];
+  /** chosen design / finish / size / colour, e.g. "Design: Calacatta · Size: 60x120 cm" */
+  options: string;
+  /** price per box for that selection, worked out on the server (0 = on request) */
+  unitPrice: number;
   status: InquiryStatus;
   notes: string;
   createdAt: string;

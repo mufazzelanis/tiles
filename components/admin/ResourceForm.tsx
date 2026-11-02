@@ -10,6 +10,8 @@ import { Card } from "./ui";
 import { ImageField, ImagesField, Toggle } from "./fields";
 import { LivePreview, SearchPreview } from "./LivePreview";
 import { ColorVariantsField, type ColorOption } from "./ColorVariantsField";
+import { OptionsField } from "./OptionsField";
+import type { ProductOptions } from "@/lib/pricing";
 import type { ColorVariant } from "@/lib/types";
 
 type Values = Record<string, unknown>;
@@ -49,7 +51,7 @@ export function ResourceForm({
       const fd = new FormData(form);
       const next: Values = {};
       for (const fld of def.fields) {
-        if (fld.type === "colors") {
+        if (fld.type === "colors" || fld.type === "options") {
           try {
             next[fld.name] = JSON.parse(String(fd.get(fld.name) ?? "[]"));
           } catch {
@@ -124,6 +126,16 @@ export function ResourceForm({
         return <ImageField name={f.name} kind="file" defaultValue={String(v ?? "")} invalid={!!err(f)} onChange={touch} />;
       case "images":
         return <ImagesField name={f.name} defaultValue={(v as string[]) ?? []} invalid={!!err(f)} onChange={touch} />;
+      case "options":
+        return (
+          <OptionsField
+            name={f.name}
+            defaultValue={v as ProductOptions}
+            legacy={{ size: String(initial.size ?? ""), finish: String(initial.finish ?? "") }}
+            basePrice={Number(live.price ?? 0)}
+            onChange={touch}
+          />
+        );
       case "colors":
         return <ColorVariantsField name={f.name} defaultValue={(v as ColorVariant[]) ?? []} colors={colors} onChange={touch} />;
       case "slug":

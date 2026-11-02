@@ -9,6 +9,8 @@ import { openQuote, useSelectedColor, type QuotePreset } from "@/lib/client-stor
 import { cn, formatPrice } from "@/lib/utils";
 import { newEventId, trackEvent } from "@/lib/meta-pixel";
 import { ColorPicker, type PickerColor } from "./ColorPicker";
+import { OptionPicker, useSelection } from "./ProductOptions";
+import { priceRange, quoteFor, type PricedProduct } from "@/lib/pricing";
 
 export interface QuoteProduct {
   id: string;
@@ -55,7 +57,12 @@ export function QuoteButton({ className, children, preset }: { className?: strin
  * "Request a quote" popup — the customer picks a colour, quantity and leaves
  * their details in one place. Opened by any `openQuote()` call.
  */
-export function QuoteDialog({ product, colors, phone }: { product: QuoteProduct; colors: (PickerColor & { photo: string })[]; phone: string }) {
+export function QuoteDialog({ product, colors, priced, phone }: {
+  product: QuoteProduct;
+  colors: (PickerColor & { photo: string })[];
+  priced: PricedProduct;
+  phone: string;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<QuotePreset>({});
@@ -77,13 +84,13 @@ export function QuoteDialog({ product, colors, phone }: { product: QuoteProduct;
         content_name: product.name,
         content_type: "product",
         num_items: detail.boxes ?? 1,
-        value: product.price ? product.price * (detail.boxes ?? 1) : undefined,
-        currency: product.price ? "BDT" : undefined,
+        value: priced.price ? priceRange(priced).min * (detail.boxes ?? 1) : undefined,
+        currency: priced.price ? "BDT" : undefined,
       });
     };
     window.addEventListener("open-quote", onOpen);
     return () => window.removeEventListener("open-quote", onOpen);
-  }, [done, product]);
+  }, [done, product, priced]);
 
   useEffect(() => {
     const d = ref.current;
@@ -105,20 +112,28 @@ export function QuoteDialog({ product, colors, phone }: { product: QuoteProduct;
       aria-label={`Request a quote for ${product.name}`}
     >
       {open && (
-        <QuoteForm key={session} product={product} colors={colors} phone={phone} preset={preset} onClose={() => setOpen(false)} onDone={() => setDone(true)} />
+        <QuoteForm key={session} product={product} colors={colors} priced={priced} phone={phone} preset={preset} onClose={() => setOpen(false)} onDone={() => setDone(true)} />
       )}
     </dialog>
   );
 }
 
-function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
+function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: {
   product: QuoteProduct;
   colors: (PickerColor & { photo: string })[];
+  priced: PricedProduct;
   phone: string;
   preset: QuotePreset;
   onClose: () => void;
   onDone: () => void;
 }) {
+  // price and box coverage follow the design / finish / size / colour picked on the page
+  const selection = useSelection(product.id, priced);
+  const q = quoteFor(priced, selection);
+  const unit = q.unitPrice;
+  const hasChoices = colors.length > 1 || [priced.options.designs, priced.options.finishes, priced.options.sizes].some((g) => g.length > 1);
+  const sqft = q.sqftPerBox;
+  const pcs = q.piecesPerBox;
   const [state, action, pending] = useActionState<InquiryState, FormData>(async (prev, fd) => {
     // the server sends the same Lead through the Conversions API with this id (de-duplication)
     const eventId = newEventId();
@@ -133,9 +148,10 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
           content_name: product.name,
           content_type: "product",
           num_items: n,
-          value: product.price ? product.price * n : undefined,
-          currency: product.price ? "BDT" : undefined,
+          value: unit ? unit * n : undefined,
+          currency: unit ? "BDT" : undefined,
           color: colors.find((c) => c.id === fd.get("colorId"))?.name,
+          content_category: q.label || undefined,
         },
         { id: eventId, relay: false },
       );
@@ -150,14 +166,14 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
   const [boxesInput, setBoxesInput] = useState(preset.boxes ?? 10);
   const [length, setLength] = useState(12);
   const [width, setWidth] = useState(10);
-  const [unit, setUnit] = useState<"ft" | "m">("ft");
+  const [measure, setMeasure] = useState<"ft" | "m">("ft");
   const [wastage, setWastage] = useState(10);
 
-  const roomSqft = length * width * (unit === "m" ? SQFT_PER_SQM : 1);
-  const roomBoxes = product.sqftPerBox > 0 ? Math.ceil((roomSqft * (1 + wastage / 100)) / product.sqftPerBox) : 0;
+  const roomSqft = length * width * (measure === "m" ? SQFT_PER_SQM : 1);
+  const roomBoxes = sqft > 0 ? Math.ceil((roomSqft * (1 + wastage / 100)) / sqft) : 0;
   const boxes = mode === "room" ? roomBoxes : boxesInput;
-  const area = mode === "room" ? roomSqft : (preset.area ?? boxes * product.sqftPerBox);
-  const total = boxes * product.price;
+  const area = mode === "room" ? roomSqft : (preset.area ?? boxes * sqft);
+  const total = boxes * unit;
   const photo = color?.photo || product.image;
   const err = state.errors ?? {};
 
@@ -179,7 +195,7 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
           {color ? <Swatch color={color} className="size-10 shadow-inner" /> : <Box className="size-8 text-muted" />}
           <div className="min-w-0 flex-1 text-sm">
             <p className="truncate font-semibold text-ink">{product.name}</p>
-            <p className="text-muted">{color?.name ?? "Any colour"} · {boxes} boxes{product.price > 0 && ` · ≈ ${formatPrice(total)}`}</p>
+            <p className="text-muted">{color?.name ?? "Any colour"} · {boxes} boxes{unit > 0 && ` · ≈ ${formatPrice(total)}`}</p>
           </div>
         </div>
         <div className="mt-6 flex w-full max-w-sm flex-col gap-2 sm:flex-row">
@@ -208,6 +224,9 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
       <input type="hidden" name="kind" value="quote" />
       <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="colorId" value={color?.id ?? ""} />
+      <input type="hidden" name="designId" value={selection.design} />
+      <input type="hidden" name="finishId" value={selection.finish} />
+      <input type="hidden" name="sizeId" value={selection.size} />
       <input type="hidden" name="boxes" value={boxes} />
       <input type="hidden" name="area" value={area.toFixed(1)} />
       <input type="text" name="company_website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
@@ -228,16 +247,18 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
         </div>
         <div className="flex flex-1 flex-col p-5">
           <p className="font-display text-lg font-semibold text-ink">{product.name}</p>
-          <p className="text-[12px] text-muted">{product.code} · {product.size} · {product.finish}</p>
+          <p className="text-[12px] text-muted">{product.code}</p>
           <dl className="mt-4 space-y-2 border-t border-neutral-300/60 pt-4 text-[13px]">
-            <Row label="Colour" value={color?.name ?? "—"} />
+            {q.lines.map((l) => (
+              <Row key={l.group} label={l.label} value={l.name} />
+            ))}
             <Row label="Boxes" value={String(boxes)} />
-            <Row label="Covers" value={`${(boxes * product.sqftPerBox).toFixed(1)} sqft · ${boxes * product.piecesPerBox} pcs`} />
-            {product.price > 0 && <Row label="Price / box" value={formatPrice(product.price)} />}
+            <Row label="Covers" value={`${(boxes * sqft).toFixed(1)} sqft · ${boxes * pcs} pcs`} />
+            {unit > 0 && <Row label="Price / box" value={formatPrice(unit)} />}
           </dl>
           <div className="mt-auto pt-5">
             <p className="text-[11px] tracking-wider text-muted uppercase">Estimated total</p>
-            <p className="font-display text-2xl font-semibold text-ink">{product.price > 0 ? formatPrice(total) : "Price on request"}</p>
+            <p className="font-display text-2xl font-semibold text-ink">{unit > 0 ? formatPrice(total) : "Price on request"}</p>
             <p className="mt-1 text-[11px] text-muted">Final price is confirmed by our sales team.</p>
           </div>
         </div>
@@ -256,15 +277,18 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
         </header>
 
         <div className="flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7">
-          {colors.length > 0 && (
-            <section>
-              {step(1, "Choose your colour")}
-              <ColorPicker productId={product.id} colors={colors} size="lg" label="Selected" />
+          {hasChoices && (
+            <section className="space-y-5">
+              {step(1, "Choose your options")}
+              <OptionPicker productId={product.id} priced={priced} group="design" />
+              <OptionPicker productId={product.id} priced={priced} group="finish" />
+              <OptionPicker productId={product.id} priced={priced} group="size" />
+              {colors.length > 0 && <ColorPicker productId={product.id} colors={colors} size="lg" label="Colour" showExtras={priced.price > 0} />}
             </section>
           )}
 
           <section>
-            {step(colors.length ? 2 : 1, "How much do you need?",
+            {step(hasChoices ? 2 : 1, "How much do you need?",
               <div className="flex border border-neutral-300 text-[11px]">
                 {([["boxes", "Boxes", Box], ["room", "Room size", Ruler]] as const).map(([m, l, Icon]) => (
                   <button key={m} type="button" onClick={() => setMode(m)} className={cn("flex items-center gap-1 px-2.5 py-1.5 transition", mode === m ? "bg-navy text-white" : "text-ink hover:bg-mist")}>
@@ -289,7 +313,7 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
                   <button type="button" onClick={() => setBoxesInput((b) => b + 1)} className="grid size-11 place-items-center text-ink hover:bg-mist" aria-label="More boxes"><Plus className="size-4" /></button>
                 </div>
                 <p className="text-[13px] text-muted">
-                  = <b className="text-ink">{(boxes * product.sqftPerBox).toFixed(1)} sqft</b> · {boxes * product.piecesPerBox} pieces
+                  = <b className="text-ink">{(boxes * sqft).toFixed(1)} sqft</b> · {boxes * pcs} pieces
                 </p>
                 <button type="button" onClick={() => setMode("room")} className="flex items-center gap-1 text-[12px] font-medium text-brand hover:underline">
                   <Calculator className="size-3.5" /> Not sure? Calculate from room size
@@ -298,19 +322,19 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
             ) : (
               <div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <NumField label={`Length (${unit})`} value={length} onChange={setLength} />
-                  <NumField label={`Width (${unit})`} value={width} onChange={setWidth} />
+                  <NumField label={`Length (${measure})`} value={length} onChange={setLength} />
+                  <NumField label={`Width (${measure})`} value={width} onChange={setWidth} />
                   <NumField label="Wastage %" value={wastage} onChange={setWastage} step={1} />
                   <label className="block">
                     <span className="mb-1 block text-[11px] font-medium tracking-wide text-muted uppercase">Unit</span>
-                    <select value={unit} onChange={(e) => setUnit(e.target.value as "ft" | "m")} className={input}>
+                    <select value={measure} onChange={(e) => setMeasure(e.target.value as "ft" | "m")} className={input}>
                       <option value="ft">Feet</option>
                       <option value="m">Metres</option>
                     </select>
                   </label>
                 </div>
                 <p className="mt-3 bg-mist px-3 py-2 text-[13px] text-ink">
-                  {roomSqft.toFixed(1)} sqft + {wastage}% → <b className="text-brand">{roomBoxes} boxes</b> ({roomBoxes * product.piecesPerBox} pieces)
+                  {roomSqft.toFixed(1)} sqft + {wastage}% → <b className="text-brand">{roomBoxes} boxes</b> ({roomBoxes * pcs} pieces)
                 </p>
               </div>
             )}
@@ -318,7 +342,7 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
           </section>
 
           <section>
-            {step(colors.length ? 3 : 2, "Your details")}
+            {step(hasChoices ? 3 : 2, "Your details")}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Full name *" error={err.name}>
                 <input name="name" autoComplete="name" aria-invalid={!!err.name} className={input} />
@@ -349,7 +373,7 @@ function QuoteForm({ product, colors, phone, preset, onClose, onDone }: {
             <p className="flex-1 text-[13px] text-ink">
               <b>{boxes} boxes</b>{color && ` · ${color.name}`}
             </p>
-            {product.price > 0 && <p className="text-[15px] font-semibold text-ink">≈ {formatPrice(total)}</p>}
+            {unit > 0 && <p className="text-[15px] font-semibold text-ink">≈ {formatPrice(total)}</p>}
           </div>
           {state.message && !state.ok && <p className="mb-2 text-[12px] text-red-600">{state.message}</p>}
           <button disabled={pending} className="flex w-full items-center justify-center gap-2 bg-navy px-6 py-3.5 text-[12px] tracking-wider text-white uppercase transition hover:bg-navy-deep disabled:opacity-60">

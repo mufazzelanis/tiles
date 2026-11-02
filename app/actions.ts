@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { mutate } from "@/lib/db";
 import { contextFrom, sendServerEvent } from "@/lib/tracking";
 import { getSiteLayout } from "@/lib/queries";
+import { pricedProduct, quoteFor } from "@/lib/pricing";
 import { newId } from "@/lib/utils";
 
 export interface InquiryState {
@@ -77,11 +78,16 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
   if (data.message.length > 3000) errors.message = "Message is too long";
   if (Object.keys(errors).length) return { errors, message: "Please check the highlighted fields." };
 
-  const { reference, product, color } = await mutate((db) => {
+  const { reference, product, color, quoted } = await mutate((db) => {
     const now = new Date().toISOString();
     const product = db.products.find((p) => p.id === data.productId && p.active);
     // snapshot the chosen colour so the inquiry still reads correctly if the colour is renamed or deleted later
     const color = db.colors.find((c) => c.id === get("colorId") && c.active);
+    // the price is always worked out here from the saved product — never taken from the browser
+    const activeColors = new Map(db.colors.filter((c) => c.active).map((c) => [c.id, c]));
+    const quoted = product
+      ? quoteFor(pricedProduct(product, activeColors), { design: get("designId"), finish: get("finishId"), size: get("sizeId"), color: color?.id ?? "" })
+      : null;
     const id = newId();
     const subject = quote && product
       ? `Quote: ${product.name}${color ? ` — ${color.name}` : ""} × ${data.boxes} box${data.boxes === 1 ? "" : "es"}`
@@ -95,12 +101,14 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
       colorId: color?.id ?? "",
       colorName: color?.name ?? "",
       colorHex: color?.hex ?? "",
+      options: quoted?.label ?? "",
+      unitPrice: quoted?.unitPrice ?? 0,
       status: "new",
       notes: "",
       createdAt: now,
       updatedAt: now,
     });
-    return { reference: `Q-${id.slice(-6).toUpperCase()}`, product, color };
+    return { reference: `Q-${id.slice(-6).toUpperCase()}`, product, color, quoted };
   });
 
   // Conversions API: same event_id as the browser Pixel, plus hashed contact details for matching
@@ -114,7 +122,7 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
         customData: {
           ...(product ? { content_ids: [product.id], content_name: product.name, content_type: "product" } : {}),
           ...(quote ? { num_items: data.boxes } : { method: "form" }),
-          ...(quote && product?.price ? { value: product.price * data.boxes, currency: "BDT" } : {}),
+          ...(quote && quoted?.unitPrice ? { value: quoted.unitPrice * data.boxes, currency: "BDT" } : {}),
           ...(color ? { color: color.name } : {}),
         },
       },

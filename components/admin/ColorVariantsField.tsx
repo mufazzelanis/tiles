@@ -44,6 +44,7 @@ export function ColorVariantsField({ name, defaultValue, colors, onChange }: {
       return n;
     });
   const setImage = (id: string, image: string) => setList((l) => l.map((v) => (v.colorId === id ? { ...v, image } : v)));
+  const setExtra = (id: string, extra: number) => setList((l) => l.map((v) => (v.colorId === id ? { ...v, extra } : v)));
   const library = colors.filter((c) => !q || `${c.name} ${c.code} ${c.family}`.toLowerCase().includes(q.toLowerCase()));
 
   if (!colors.length) {
@@ -97,6 +98,18 @@ export function ColorVariantsField({ name, defaultValue, colors, onChange }: {
                   </span>
                   <span className="block text-[11px] text-slate-400">{[c.code, c.family].filter(Boolean).join(" · ")}</span>
                 </span>
+                <label className="flex shrink-0 items-center rounded-md border border-slate-200 focus-within:border-primary-500" title="Added to the base price when this colour is picked">
+                  <span className="pl-2 text-[11px] text-slate-400">±৳</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={v.extra || ""}
+                    placeholder="0"
+                    onChange={(e) => setExtra(v.colorId, Number(e.target.value) || 0)}
+                    aria-label={`${c.name} price extra`}
+                    className="w-20 bg-transparent px-1.5 py-1 text-sm focus:outline-none"
+                  />
+                </label>
                 {v.image ? (
                   <span className="group relative size-10 shrink-0 overflow-hidden rounded-md ring-1 ring-slate-200">
                     <Img src={v.image} alt="" fill sizes="40px" className="object-cover" />

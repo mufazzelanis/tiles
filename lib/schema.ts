@@ -22,7 +22,7 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
   },
   products: {
     id: "id", name: "string", slug: "string", code: "string", categoryId: "string", size: "string", finish: "string",
-    color: "string", colorVariants: "json", thickness: "string", applications: "json", piecesPerBox: "int", sqftPerBox: "float", price: "float",
+    color: "string", colorVariants: "json", options: "json", thickness: "string", applications: "json", piecesPerBox: "int", sqftPerBox: "float", price: "float",
     images: "json", description: "text", featured: "bool", isNew: "bool", active: "bool", views: "int", ...ts,
   },
   slides: { id: "id", title: "string", subtitle: "string", image: "text", ctaLabel: "string", ctaLink: "string", order: "int", active: "bool", ...ts },
@@ -33,7 +33,7 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
   sustainability: { id: "id", title: "string", heading: "string", body: "text", image: "text", order: "int", active: "bool", ...ts },
   inquiries: {
     id: "id", name: "string", email: "string", phone: "string", subject: "string", message: "text", productId: "string",
-    colorId: "string", colorName: "string", colorHex: "string", boxes: "int", area: "float", location: "string", extra: "json", status: "string", notes: "text", ...ts,
+    colorId: "string", colorName: "string", colorHex: "string", boxes: "int", area: "float", location: "string", extra: "json", options: "text", unitPrice: "float", status: "string", notes: "text", ...ts,
   },
   activity: { id: "id", userName: "string", action: "string", target: "text", at: "datetime" },
 };
