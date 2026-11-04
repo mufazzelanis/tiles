@@ -10,6 +10,10 @@ import { SiteToaster } from "@/components/site/SiteToaster";
 import { InstallPrompt } from "@/components/site/InstallPrompt";
 import { FloatingContact } from "@/components/site/FloatingContact";
 
+// Always render from the database on the server it runs on. Builds happen on another machine
+// (with its own database), so nothing that reads data may be baked in at build time.
+export const dynamic = "force-dynamic";
+
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
   const [{ settings, categories }, pixel, layout] = await Promise.all([getDb(), getPublicPixel(), getSiteLayout()]);
   const cats = categories

@@ -16,11 +16,6 @@ import { FavoriteButton } from "@/components/site/FavoriteButton";
 import { ShareButton } from "@/components/site/ShareButton";
 import { RecentlyViewed } from "@/components/site/ProductLists";
 
-export async function generateStaticParams() {
-  const { products } = await getSite();
-  return products.map((p) => ({ slug: p.slug }));
-}
-
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const { products } = await getSite();

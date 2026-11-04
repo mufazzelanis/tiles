@@ -2,6 +2,10 @@ import type { MetadataRoute } from "next";
 import { getDb } from "@/lib/db";
 
 /** Makes the site installable as an app on phones and desktops. */
+// Always render from the database on the server it runs on. Builds happen on another machine
+// (with its own database), so nothing that reads data may be baked in at build time.
+export const dynamic = "force-dynamic";
+
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const { settings } = await getDb();
   return {

@@ -16,7 +16,8 @@ SSH=(ssh -i "$KEY" -p "$PORT" -o IdentitiesOnly=yes -o BatchMode=yes "$HOST")
 cd "$(dirname "$0")/.."
 
 echo "› Building…"
-npm run build
+# static pages (sitemap, robots, share previews) bake the site address in at build time
+SITE_URL="https://$DOMAIN" npm run build
 
 echo "› Packaging…"
 PKG="$(mktemp -d)/release.tgz"
