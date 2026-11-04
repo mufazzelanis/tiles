@@ -675,7 +675,8 @@ function LogoPicker({ label, value, onChange, round, dark }: { label: string; va
               accept="image/*"
               hidden
               onChange={async (e) => {
-                const files = e.target.files;
+                // copy first: clearing the input below also empties its live FileList
+                const files = Array.from(e.target.files ?? []);
                 e.target.value = "";
                 if (!files?.length) return;
                 setBusy(true);

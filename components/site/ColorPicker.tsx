@@ -6,17 +6,14 @@ import { setSelectedColor, useSelectedColor } from "@/lib/client-store";
 import type { SwatchColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/meta-pixel";
-import { formatExtra } from "@/lib/pricing";
 
 export type PickerColor = SwatchColor & { description?: string; extra?: number };
 
 /** Swatch buttons for choosing a tile colour. Shares its choice with the gallery and quote popup. */
-export function ColorPicker({ productId, colors, size = "md", label = "Colour", showExtras = true }: {
+export function ColorPicker({ productId, colors, size = "md", label = "Colour" }: {
   productId: string;
   colors: PickerColor[];
   size?: "md" | "lg";
-  /** show the selected colour's price difference (off when the product has no base price) */
-  showExtras?: boolean;
   label?: string;
 }) {
   const selectedId = useSelectedColor(productId, colors[0]?.id ?? "");
@@ -29,7 +26,6 @@ export function ColorPicker({ productId, colors, size = "md", label = "Colour", 
       <legend className="mb-2.5 text-[11px] tracking-wider text-muted uppercase">
         {label}: <b className="font-semibold text-ink normal-case">{selected?.name}</b>
         {selected?.code && <span className="ml-1.5 text-neutral-400 normal-case">{selected.code}</span>}
-        {showExtras && !!selected?.extra && <span className="ml-1.5 font-medium text-brand normal-case">{formatExtra(selected.extra)}</span>}
         {colors.length > 1 && <span className="ml-1.5 text-neutral-400 normal-case">· {colors.length} colours</span>}
       </legend>
       <div className="flex flex-wrap gap-2.5" role="radiogroup" aria-label={label}>

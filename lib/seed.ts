@@ -1,6 +1,8 @@
 import type { Database, Product, TileColor } from "./types";
 import { BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
 import { DEFAULT_COLORS, DEFAULT_PRODUCT_COLORS } from "./colors";
+import { normalizeOptions } from "./pricing";
+import { DEFAULT_CATALOGUES } from "./catalogue";
 
 const u = (id: string, w = 1600) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
@@ -69,7 +71,8 @@ const products: Product[] = productSeed.map((p, i) => {
     color: shades.map((c) => c.name).join(", ") || p.color,
     // the first shade uses the product's cover photo
     colorVariants: shades.map((c, n) => ({ colorId: c.id, image: n === 0 ? (p.images[0] ?? "") : "", extra: 0 })),
-    options: { designs: [], finishes: [{ id: "f1", name: p.finish, extra: 0 }], sizes: [{ id: "s1", name: p.size, extra: 0, piecesPerBox: 0, sqftPerBox: 0 }] },
+    // one variation per colour, in the product's size
+    options: normalizeOptions({}, { ...p, colorVariants: shades.map((c, n) => ({ colorId: c.id, image: n === 0 ? (p.images[0] ?? "") : "" })) }),
     id: `prd-${i + 1}`,
     slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     views: Math.round(40 + Math.random() * 400),
@@ -151,11 +154,9 @@ export function createSeed(adminHash: string, adminEmail: string): Database {
       { id: "prj-2", title: "Harbour View Hotel", slug: "harbour-view-hotel", client: "Harbour Hospitality", location: "Chattogram", year: 2024, image: IMG.interior, description: "Technical porcelain for lobby and corridors, glazed porcelain in 120 guest bathrooms.", active: true, ...stamp },
       { id: "prj-3", title: "Green Valley School", slug: "green-valley-school", client: "Green Valley Trust", location: "Sylhet", year: 2024, image: IMG.house, description: "Slip-resistant Rustic Matt tiles for classrooms and outdoor walkways.", active: true, ...stamp },
     ],
-    catalogues: [
-      { id: "ctl-1", title: "Product Catalogue 2026", cover: IMG.livingRoom, fileUrl: "#", year: 2026, active: true, ...stamp },
-      { id: "ctl-2", title: "Wall Tiles Lookbook", cover: IMG.kitchen, fileUrl: "#", year: 2026, active: true, ...stamp },
-      { id: "ctl-3", title: "Technical Porcelain Guide", cover: IMG.interior3, fileUrl: "#", year: 2025, active: true, ...stamp },
-    ],
+    catalogues: DEFAULT_CATALOGUES.map((c, i) => ({
+      ...c, id: `ctl-${i + 1}`, cover: "", fileUrl: "", fileSize: 0, downloads: 0, order: i + 1, active: true, ...stamp,
+    })),
     sustainability: [
       { id: "sus-1", title: "Product", heading: "Towards a safer tomorrow", body: "We continuously improve the quality of our products and every process that goes into making them, while minimising the negative impact on the environment and on consumers.", image: IMG.lounge, order: 1, active: true, ...stamp },
       { id: "sus-2", title: "Energy", heading: "Cleaner firing", body: "Heat recovery from our kilns powers the dryers, cutting gas use per square metre by nearly a third.", image: IMG.interior2, order: 2, active: true, ...stamp },

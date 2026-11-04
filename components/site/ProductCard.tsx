@@ -13,7 +13,7 @@ export type CardProduct = Pick<Product, "id" | "slug" | "name" | "images" | "siz
   /** price varies by design / size / colour — shown as "From ৳…" */
   priceFrom?: boolean;
   /** full site products carry their price range */
-  range?: { min: number; varies: boolean };
+  range?: { min: number; varies: boolean; sale?: boolean };
 };
 
 export function ProductCard({ product, categoryName }: { product: CardProduct; categoryName?: string }) {
@@ -40,7 +40,10 @@ export function ProductCard({ product, categoryName }: { product: CardProduct; c
             className="object-cover opacity-0 transition duration-700 group-hover:opacity-100"
           />
         )}
-        {product.isNew && (
+        {product.range?.sale && (
+          <span className="absolute top-2 left-2 bg-brand px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase">Offer</span>
+        )}
+        {product.isNew && !product.range?.sale && (
           <span className="absolute top-2 left-2 bg-leaf px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase">New</span>
         )}
         <FavoriteButton id={product.id} name={product.name} className="absolute top-2 right-2" />

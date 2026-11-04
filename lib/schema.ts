@@ -29,7 +29,10 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
   stores: { id: "id", name: "string", type: "string", division: "string", address: "text", phone: "string", mapUrl: "text", active: "bool", ...ts },
   news: { id: "id", title: "string", slug: "string", type: "string", image: "text", excerpt: "text", content: "text", publishedAt: "datetime", active: "bool", ...ts },
   projects: { id: "id", title: "string", slug: "string", client: "string", location: "string", year: "int", image: "text", description: "text", active: "bool", ...ts },
-  catalogues: { id: "id", title: "string", cover: "text", fileUrl: "text", year: "int", active: "bool", ...ts },
+  catalogues: {
+    id: "id", title: "string", subtitle: "string", description: "text", cover: "text", coverStyle: "string", coverColor: "string",
+    fileUrl: "text", fileSize: "int", downloads: "int", sections: "json", year: "int", order: "int", active: "bool", ...ts,
+  },
   sustainability: { id: "id", title: "string", heading: "string", body: "text", image: "text", order: "int", active: "bool", ...ts },
   inquiries: {
     id: "id", name: "string", email: "string", phone: "string", subject: "string", message: "text", productId: "string",

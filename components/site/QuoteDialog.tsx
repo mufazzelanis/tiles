@@ -1,16 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Box, Calculator, CircleCheck, Loader2, MapPin, Minus, Phone, Plus, Ruler, Send, ShieldCheck, Truck, X } from "lucide-react";
+import { Calculator, Grid3x3, CircleCheck, Loader2, MapPin, Minus, Phone, Plus, Ruler, Send, ShieldCheck, Truck, X } from "lucide-react";
 import Img from "@/components/Img";
 import { Swatch, TilePreview } from "@/components/Swatch";
 import { submitInquiry, type InquiryState } from "@/app/actions";
-import { openQuote, useSelectedColor, type QuotePreset } from "@/lib/client-store";
+import { openQuote, type QuotePreset } from "@/lib/client-store";
 import { cn, formatPrice } from "@/lib/utils";
 import { newEventId, trackEvent } from "@/lib/meta-pixel";
-import { ColorPicker, type PickerColor } from "./ColorPicker";
-import { OptionPicker, useSelection } from "./ProductOptions";
-import { priceRange, quoteFor, type PricedProduct } from "@/lib/pricing";
+import type { PickerColor } from "./ColorPicker";
+import { useVariation, VariationPicker } from "./ProductOptions";
+import { choiceAttributes, priceRange, quoteFor, type PricedProduct } from "@/lib/pricing";
 
 export interface QuoteProduct {
   id: string;
@@ -19,24 +19,21 @@ export interface QuoteProduct {
   size: string;
   finish: string;
   price: number;
-  sqftPerBox: number;
-  piecesPerBox: number;
   image: string;
 }
 
 const SQFT_PER_SQM = 10.7639;
 
-/** WhatsApp link that mentions the colour currently picked on the page. */
-export function WhatsAppButton({ phone, product, colors, className, children }: {
+/** WhatsApp link that mentions the variation (design, colour, size…) currently picked on the page. */
+export function WhatsAppButton({ phone, product, priced, className, children }: {
   phone: string;
   product: Pick<QuoteProduct, "id" | "name" | "code">;
-  colors: { id: string; name: string }[];
+  priced: PricedProduct;
   className?: string;
   children: React.ReactNode;
 }) {
-  const colorId = useSelectedColor(product.id, colors[0]?.id ?? "");
-  const color = colors.find((c) => c.id === colorId);
-  const text = `Hi, I'm interested in ${product.name} (${product.code})${color ? ` in ${color.name}` : ""}.`;
+  const q = quoteFor(priced, useVariation(product.id, priced)?.id ?? "");
+  const text = `Hi, I'm interested in ${product.name} (${product.code})${q.lines.length ? ` — ${q.lines.map((l) => l.value).join(", ")}` : ""}.`;
   return (
     <a href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" className={className}>
       {children}
@@ -74,7 +71,7 @@ export function QuoteDialog({ product, colors, priced, phone }: {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<QuotePreset>).detail ?? {};
       setPreset(detail);
-      if (done || detail.boxes) {
+      if (done || detail.pieces) {
         setSession((s) => s + 1);
         setDone(false);
       }
@@ -83,9 +80,9 @@ export function QuoteDialog({ product, colors, priced, phone }: {
         content_ids: [product.id],
         content_name: product.name,
         content_type: "product",
-        num_items: detail.boxes ?? 1,
-        value: priced.price ? priceRange(priced).min * (detail.boxes ?? 1) : undefined,
-        currency: priced.price ? "BDT" : undefined,
+        num_items: detail.pieces ?? 1,
+        value: priceRange(priced).min ? priceRange(priced).min * (detail.pieces ?? 1) : undefined,
+        currency: priceRange(priced).min ? "BDT" : undefined,
       });
     };
     window.addEventListener("open-quote", onOpen);
@@ -127,20 +124,20 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
   onClose: () => void;
   onDone: () => void;
 }) {
-  // price and box coverage follow the design / finish / size / colour picked on the page
-  const selection = useSelection(product.id, priced);
-  const q = quoteFor(priced, selection);
+  // price per piece, tile size and photo follow the variation picked on the page
+  const variation = useVariation(product.id, priced);
+  const q = quoteFor(priced, variation?.id ?? "");
   const unit = q.unitPrice;
-  const hasChoices = colors.length > 1 || [priced.options.designs, priced.options.finishes, priced.options.sizes].some((g) => g.length > 1);
-  const sqft = q.sqftPerBox;
-  const pcs = q.piecesPerBox;
+  const hasChoices = choiceAttributes(priced).length > 0;
+  /** sqft one piece covers (0 = unknown) */
+  const sqft = q.pieceArea;
   const [state, action, pending] = useActionState<InquiryState, FormData>(async (prev, fd) => {
     // the server sends the same Lead through the Conversions API with this id (de-duplication)
     const eventId = newEventId();
     fd.set("fbEventId", eventId);
     const r = await submitInquiry(prev, fd);
     if (r.ok) {
-      const n = Number(fd.get("boxes")) || 0;
+      const n = Number(fd.get("pieces")) || 0;
       trackEvent(
         "Lead",
         {
@@ -159,27 +156,26 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
     }
     return r;
   }, {});
-  const colorId = useSelectedColor(product.id, colors[0]?.id ?? "");
-  const color = colors.find((c) => c.id === colorId) ?? colors[0];
+  const color = colors.find((c) => c.id === variation?.colorId);
 
-  const [mode, setMode] = useState<"boxes" | "room">(preset.area && !preset.boxes ? "room" : "boxes");
-  const [boxesInput, setBoxesInput] = useState(preset.boxes ?? 10);
+  const [mode, setMode] = useState<"pieces" | "room">(preset.area && !preset.pieces ? "room" : "pieces");
+  const [piecesInput, setPiecesInput] = useState(preset.pieces ?? 100);
   const [length, setLength] = useState(12);
   const [width, setWidth] = useState(10);
   const [measure, setMeasure] = useState<"ft" | "m">("ft");
   const [wastage, setWastage] = useState(10);
 
   const roomSqft = length * width * (measure === "m" ? SQFT_PER_SQM : 1);
-  const roomBoxes = sqft > 0 ? Math.ceil((roomSqft * (1 + wastage / 100)) / sqft) : 0;
-  const boxes = mode === "room" ? roomBoxes : boxesInput;
-  const area = mode === "room" ? roomSqft : (preset.area ?? boxes * sqft);
-  const total = boxes * unit;
-  const photo = color?.photo || product.image;
+  const roomPieces = sqft > 0 ? Math.ceil((roomSqft * (1 + wastage / 100)) / sqft) : 0;
+  const pieces = mode === "room" ? roomPieces : piecesInput;
+  const area = mode === "room" ? roomSqft : (preset.area ?? pieces * sqft);
+  const total = pieces * unit;
+  const photo = variation?.images[0] || color?.photo || product.image;
   const err = state.errors ?? {};
 
   if (state.ok) {
     const wa = `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-      `Hi, I just requested a quote (${state.reference}) for ${product.name}${color ? ` in ${color.name}` : ""} — ${boxes} boxes.`,
+      `Hi, I just requested a quote (${state.reference}) for ${product.name}${color ? ` in ${color.name}` : ""} — ${pieces} pieces.`,
     )}`;
     return (
       <div className="flex h-full flex-col items-center justify-center overflow-y-auto p-8 text-center sm:p-12">
@@ -192,10 +188,10 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
         )}
         <p className="mt-3 max-w-md text-[15px] text-neutral-600">{state.message}</p>
         <div className="mt-6 flex w-full max-w-sm items-center gap-3 border border-neutral-200 p-3 text-left">
-          {color ? <Swatch color={color} className="size-10 shadow-inner" /> : <Box className="size-8 text-muted" />}
+          {color ? <Swatch color={color} className="size-10 shadow-inner" /> : <Grid3x3 className="size-8 text-muted" />}
           <div className="min-w-0 flex-1 text-sm">
             <p className="truncate font-semibold text-ink">{product.name}</p>
-            <p className="text-muted">{color?.name ?? "Any colour"} · {boxes} boxes{unit > 0 && ` · ≈ ${formatPrice(total)}`}</p>
+            <p className="text-muted">{color?.name ?? "Any colour"} · {pieces} pieces{unit > 0 && ` · ≈ ${formatPrice(total)}`}</p>
           </div>
         </div>
         <div className="mt-6 flex w-full max-w-sm flex-col gap-2 sm:flex-row">
@@ -223,11 +219,8 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
     <form action={action} className="grid h-full grid-rows-[minmax(0,1fr)] md:grid-cols-[340px_1fr]">
       <input type="hidden" name="kind" value="quote" />
       <input type="hidden" name="productId" value={product.id} />
-      <input type="hidden" name="colorId" value={color?.id ?? ""} />
-      <input type="hidden" name="designId" value={selection.design} />
-      <input type="hidden" name="finishId" value={selection.finish} />
-      <input type="hidden" name="sizeId" value={selection.size} />
-      <input type="hidden" name="boxes" value={boxes} />
+      <input type="hidden" name="variationId" value={variation?.id ?? ""} />
+      <input type="hidden" name="pieces" value={pieces} />
       <input type="hidden" name="area" value={area.toFixed(1)} />
       <input type="text" name="company_website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
 
@@ -250,11 +243,11 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
           <p className="text-[12px] text-muted">{product.code}</p>
           <dl className="mt-4 space-y-2 border-t border-neutral-300/60 pt-4 text-[13px]">
             {q.lines.map((l) => (
-              <Row key={l.group} label={l.label} value={l.name} />
+              <Row key={l.label} label={l.label} value={l.value} />
             ))}
-            <Row label="Boxes" value={String(boxes)} />
-            <Row label="Covers" value={`${(boxes * sqft).toFixed(1)} sqft · ${boxes * pcs} pcs`} />
-            {unit > 0 && <Row label="Price / box" value={formatPrice(unit)} />}
+            <Row label="Pieces" value={pieces.toLocaleString("en-IN")} />
+            {sqft > 0 && <Row label="Covers" value={`≈ ${(pieces * sqft).toFixed(1)} sqft`} />}
+            {unit > 0 && <Row label="Price / piece" value={formatPrice(unit)} />}
           </dl>
           <div className="mt-auto pt-5">
             <p className="text-[11px] tracking-wider text-muted uppercase">Estimated total</p>
@@ -280,40 +273,38 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
           {hasChoices && (
             <section className="space-y-5">
               {step(1, "Choose your options")}
-              <OptionPicker productId={product.id} priced={priced} group="design" />
-              <OptionPicker productId={product.id} priced={priced} group="finish" />
-              <OptionPicker productId={product.id} priced={priced} group="size" />
-              {colors.length > 0 && <ColorPicker productId={product.id} colors={colors} size="lg" label="Colour" showExtras={priced.price > 0} />}
+              <VariationPicker productId={product.id} priced={priced} swatches={colors} size="lg" />
             </section>
           )}
 
           <section>
             {step(hasChoices ? 2 : 1, "How much do you need?",
               <div className="flex border border-neutral-300 text-[11px]">
-                {([["boxes", "Boxes", Box], ["room", "Room size", Ruler]] as const).map(([m, l, Icon]) => (
+                {([["pieces", "Pieces", Grid3x3], ["room", "Room size", Ruler]] as const).map(([m, l, Icon]) => (
                   <button key={m} type="button" onClick={() => setMode(m)} className={cn("flex items-center gap-1 px-2.5 py-1.5 transition", mode === m ? "bg-navy text-white" : "text-ink hover:bg-mist")}>
                     <Icon className="size-3.5" /> {l}
                   </button>
                 ))}
               </div>,
             )}
-            {mode === "boxes" ? (
+            {mode === "pieces" ? (
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center border border-neutral-300">
-                  <button type="button" onClick={() => setBoxesInput((b) => Math.max(1, b - 1))} className="grid size-11 place-items-center text-ink hover:bg-mist" aria-label="Fewer boxes"><Minus className="size-4" /></button>
+                  <button type="button" onClick={() => setPiecesInput((b) => Math.max(1, b - 10))} className="grid size-11 place-items-center text-ink hover:bg-mist" aria-label="10 fewer pieces"><Minus className="size-4" /></button>
                   <input
                     type="number"
                     min={1}
-                    value={boxesInput || ""}
-                    onChange={(e) => setBoxesInput(Math.max(0, Math.round(Number(e.target.value))))}
-                    aria-invalid={!!err.boxes}
+                    value={piecesInput || ""}
+                    onChange={(e) => setPiecesInput(Math.max(0, Math.round(Number(e.target.value))))}
+                    aria-invalid={!!err.pieces}
                     className="h-11 w-20 border-x border-neutral-300 text-center text-lg font-semibold text-ink focus:outline-none"
-                    aria-label="Number of boxes"
+                    aria-label="Number of pieces"
                   />
-                  <button type="button" onClick={() => setBoxesInput((b) => b + 1)} className="grid size-11 place-items-center text-ink hover:bg-mist" aria-label="More boxes"><Plus className="size-4" /></button>
+                  <button type="button" onClick={() => setPiecesInput((b) => b + 10)} className="grid size-11 place-items-center text-ink hover:bg-mist" aria-label="10 more pieces"><Plus className="size-4" /></button>
                 </div>
                 <p className="text-[13px] text-muted">
-                  = <b className="text-ink">{(boxes * sqft).toFixed(1)} sqft</b> · {boxes * pcs} pieces
+                  {unit > 0 && <><b className="text-ink">{pieces.toLocaleString("en-IN")} × ৳{unit.toLocaleString("en-IN")}</b> = ৳{total.toLocaleString("en-IN")}</>}
+                  {sqft > 0 && <> · covers ≈ {(pieces * sqft).toFixed(1)} sqft</>}
                 </p>
                 <button type="button" onClick={() => setMode("room")} className="flex items-center gap-1 text-[12px] font-medium text-brand hover:underline">
                   <Calculator className="size-3.5" /> Not sure? Calculate from room size
@@ -334,11 +325,11 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
                   </label>
                 </div>
                 <p className="mt-3 bg-mist px-3 py-2 text-[13px] text-ink">
-                  {roomSqft.toFixed(1)} sqft + {wastage}% → <b className="text-brand">{roomBoxes} boxes</b> ({roomBoxes * pcs} pieces)
+                  {roomSqft.toFixed(1)} sqft + {wastage}% → <b className="text-brand">{roomPieces.toLocaleString("en-IN")} pieces</b>{!sqft && " (tile size not set — enter pieces instead)"}
                 </p>
               </div>
             )}
-            {err.boxes && <p className="mt-1.5 text-[12px] text-red-600">{err.boxes}</p>}
+            {err.pieces && <p className="mt-1.5 text-[12px] text-red-600">{err.pieces}</p>}
           </section>
 
           <section>
@@ -371,7 +362,7 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
           <div className="mb-3 flex items-center gap-3 md:hidden">
             {color && <Swatch color={color} className="size-8" />}
             <p className="flex-1 text-[13px] text-ink">
-              <b>{boxes} boxes</b>{color && ` · ${color.name}`}
+              <b>{pieces.toLocaleString("en-IN")} pieces</b>{color && ` · ${color.name}`}
             </p>
             {unit > 0 && <p className="text-[15px] font-semibold text-ink">≈ {formatPrice(total)}</p>}
           </div>

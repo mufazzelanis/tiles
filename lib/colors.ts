@@ -9,7 +9,7 @@ import type { ColorPattern, TileColor } from "./types";
 /** What a swatch needs to be drawn. */
 export type SwatchColor = Pick<TileColor, "id" | "name" | "slug" | "code" | "hex" | "hex2" | "pattern" | "image">;
 
-export const COLOR_FAMILIES = ["White", "Beige", "Grey", "Black", "Brown", "Blue", "Green", "Red", "Gold", "Multi"];
+export const COLOR_FAMILIES = ["White", "Black", "Grey", "Red", "Yellow", "Green", "Beige", "Brown", "Blue", "Gold", "Multi"];
 
 export const PATTERNS: { value: ColorPattern; label: string; hint: string }[] = [
   { value: "solid", label: "Solid", hint: "One flat colour" },
@@ -118,40 +118,31 @@ export function colorOptions(colors: TileColor[]) {
 
 /** Starter palette — created on first run, and for existing sites when colours are first introduced. */
 export const DEFAULT_COLORS: Omit<TileColor, "id" | "order" | "active" | "createdAt" | "updatedAt">[] = [
-  { name: "Statuario White", slug: "statuario-white", code: "C-101", family: "White", hex: "#f4f2ee", hex2: "#a9a6a0", pattern: "marble", image: "", description: "Bright white with soft grey veins." },
-  { name: "Calacatta Gold", slug: "calacatta-gold", code: "C-102", family: "White", hex: "#f5f0e6", hex2: "#c49a45", pattern: "marble", image: "", description: "Warm white with bold gold veining." },
-  { name: "Arctic White", slug: "arctic-white", code: "C-103", family: "White", hex: "#fbfbfa", hex2: "#fbfbfa", pattern: "solid", image: "", description: "Pure, high-gloss white." },
-  { name: "Ivory Cream", slug: "ivory-cream", code: "C-201", family: "Beige", hex: "#ede2cc", hex2: "#d9c7a5", pattern: "gradient", image: "", description: "Soft cream that warms any room." },
-  { name: "Travertine Sand", slug: "travertine-sand", code: "C-202", family: "Beige", hex: "#d8c2a0", hex2: "#a88d66", pattern: "speckle", image: "", description: "Sandy stone with natural pores." },
-  { name: "Pearl Onyx", slug: "pearl-onyx", code: "C-203", family: "Beige", hex: "#efe3d0", hex2: "#c8ad86", pattern: "marble", image: "", description: "Translucent onyx with pearl undertones." },
-  { name: "Armani Grey", slug: "armani-grey", code: "C-301", family: "Grey", hex: "#a9a6a1", hex2: "#e4e1dc", pattern: "marble", image: "", description: "Calm mid-grey with light veins." },
-  { name: "Graphite", slug: "graphite", code: "C-302", family: "Grey", hex: "#4d4e51", hex2: "#77787b", pattern: "speckle", image: "", description: "Deep technical grey." },
-  { name: "Terrazzo Dove", slug: "terrazzo-dove", code: "C-303", family: "Grey", hex: "#d4d2ce", hex2: "#6f6c68", pattern: "terrazzo", image: "", description: "Light grey terrazzo with dark chips." },
-  { name: "Nero Black", slug: "nero-black", code: "C-401", family: "Black", hex: "#1e1e20", hex2: "#e6e6e6", pattern: "marble", image: "", description: "Deep black with crisp white veins." },
-  { name: "Natural Oak", slug: "natural-oak", code: "C-501", family: "Brown", hex: "#b88a5c", hex2: "#8c6440", pattern: "wood", image: "", description: "Light oak with a natural grain." },
-  { name: "Walnut", slug: "walnut", code: "C-502", family: "Brown", hex: "#6e4c35", hex2: "#4a3121", pattern: "wood", image: "", description: "Rich, dark walnut grain." },
-  { name: "Aqua Blue", slug: "aqua-blue", code: "C-601", family: "Blue", hex: "#86c3cc", hex2: "#3e8c9a", pattern: "gradient", image: "", description: "Fresh aqua for bathrooms." },
-  { name: "Sage Green", slug: "sage-green", code: "C-701", family: "Green", hex: "#a3b196", hex2: "#7f8f72", pattern: "solid", image: "", description: "Muted, earthy green." },
+  { name: "Red", slug: "red", code: "C-101", family: "Red", hex: "#c62828", hex2: "#c62828", pattern: "solid", image: "", description: "" },
+  { name: "Black", slug: "black", code: "C-102", family: "Black", hex: "#1e1e20", hex2: "#1e1e20", pattern: "solid", image: "", description: "" },
+  { name: "White", slug: "white", code: "C-103", family: "White", hex: "#f7f7f5", hex2: "#f7f7f5", pattern: "solid", image: "", description: "" },
+  { name: "Gray", slug: "gray", code: "C-104", family: "Grey", hex: "#9e9e9e", hex2: "#9e9e9e", pattern: "solid", image: "", description: "" },
+  { name: "Yellow", slug: "yellow", code: "C-105", family: "Yellow", hex: "#f2c230", hex2: "#f2c230", pattern: "solid", image: "", description: "" },
+  { name: "Green", slug: "green", code: "C-106", family: "Green", hex: "#3f8f4f", hex2: "#3f8f4f", pattern: "solid", image: "", description: "" },
 ];
 
 /** Which starter colours each seeded product comes in. */
 export const DEFAULT_PRODUCT_COLORS: Record<string, string[]> = {
-  "Statuario Bianco": ["statuario-white", "armani-grey"],
-  "Calacatta Gold": ["calacatta-gold", "statuario-white"],
-  "Onyx Pearl": ["pearl-onyx", "ivory-cream"],
-  "Armani Grey": ["armani-grey", "graphite", "statuario-white"],
-  "Travertino Sand": ["travertine-sand", "ivory-cream"],
-  "Nero Marquina": ["nero-black"],
-  "Arctic White": ["arctic-white", "ivory-cream", "sage-green"],
-  "Aqua Mosaic": ["aqua-blue", "arctic-white"],
-  "Woodland Relief": ["walnut", "natural-oak"],
-  "Stone Ripple": ["terrazzo-dove", "graphite"],
-  "Graphite Pro": ["graphite", "terrazzo-dove"],
-  "Oak Plank": ["natural-oak", "walnut"],
+  "Statuario Bianco": ["white", "gray"],
+  "Calacatta Gold": ["white", "yellow"],
+  "Onyx Pearl": ["white"],
+  "Armani Grey": ["gray", "black", "white"],
+  "Travertino Sand": ["yellow", "white"],
+  "Nero Marquina": ["black"],
+  "Arctic White": ["white", "green"],
+  "Aqua Mosaic": ["green", "white"],
+  "Woodland Relief": ["red", "black"],
+  "Stone Ripple": ["gray", "black"],
+  "Graphite Pro": ["gray", "black"],
+  "Oak Plank": ["red", "yellow"],
 };
 
 /** Fallback when an older product only has a colour family name. */
 export const FAMILY_DEFAULT: Record<string, string> = {
-  White: "statuario-white", Beige: "ivory-cream", Grey: "armani-grey", Black: "nero-black",
-  Brown: "natural-oak", Blue: "aqua-blue", Green: "sage-green",
+  White: "white", Beige: "white", Grey: "gray", Black: "black", Brown: "red", Blue: "gray", Green: "green", Red: "red", Yellow: "yellow",
 };

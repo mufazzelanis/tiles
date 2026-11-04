@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { LayoutList, Plus } from "lucide-react";
 import { getDb } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -35,11 +35,18 @@ export default async function ResourceListPage({ params }: PageProps<"/admin/[re
         title={def.label}
         description={def.description}
         actions={
-          perms.create && (
-            <LinkButton href={`/admin/${def.key}/new`}>
-              <Plus className="size-4" /> New {def.singular.toLowerCase()}
-            </LinkButton>
-          )
+          <>
+            {def.key === "catalogues" && (
+              <LinkButton href="/admin/settings/catalogue" variant="secondary">
+                <LayoutList className="size-4" /> Page & sections
+              </LinkButton>
+            )}
+            {perms.create && (
+              <LinkButton href={`/admin/${def.key}/new`}>
+                <Plus className="size-4" /> New {def.singular.toLowerCase()}
+              </LinkButton>
+            )}
+          </>
         }
       />
       <ResourceTable resourceKey={def.key} rows={slim} categories={categories} colors={db.colors.map(toSwatch)} perms={perms} />

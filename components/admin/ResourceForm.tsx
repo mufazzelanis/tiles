@@ -10,7 +10,7 @@ import { Card } from "./ui";
 import { ImageField, ImagesField, Toggle } from "./fields";
 import { LivePreview, SearchPreview } from "./LivePreview";
 import { ColorVariantsField, type ColorOption } from "./ColorVariantsField";
-import { OptionsField } from "./OptionsField";
+import { VariationsField } from "./VariationsField";
 import type { ProductOptions } from "@/lib/pricing";
 import type { ColorVariant } from "@/lib/types";
 
@@ -22,6 +22,7 @@ export function ResourceForm({
   initial,
   categories,
   colors = [],
+  lookups = {},
   siteName,
   readOnly = false,
 }: {
@@ -29,6 +30,8 @@ export function ResourceForm({
   id: string | null;
   initial: Values;
   categories: { value: string; label: string }[];
+  /** extra option lists for select / multiselect fields with a `source` */
+  lookups?: Record<string, { value: string; label: string }[]>;
   colors?: ColorOption[];
   siteName: string;
   readOnly?: boolean;
@@ -86,7 +89,8 @@ export function ResourceForm({
   }, [dirty, pending]);
 
   const err = (f: FieldDef) => state.errors?.[f.name];
-  const optionsFor = (f: FieldDef) => (f.source === "categories" ? categories : (f.options ?? []).map((o) => ({ value: o, label: o })));
+  const optionsFor = (f: FieldDef) =>
+    f.source === "categories" ? categories : f.source ? (lookups[f.source] ?? []) : (f.options ?? []).map((o) => ({ value: o, label: o[0].toUpperCase() + o.slice(1) }));
 
   const control = (f: FieldDef) => {
     const v = initial[f.name];
@@ -128,13 +132,7 @@ export function ResourceForm({
         return <ImagesField name={f.name} defaultValue={(v as string[]) ?? []} invalid={!!err(f)} onChange={touch} />;
       case "options":
         return (
-          <OptionsField
-            name={f.name}
-            defaultValue={v as ProductOptions}
-            legacy={{ size: String(initial.size ?? ""), finish: String(initial.finish ?? "") }}
-            basePrice={Number(live.price ?? 0)}
-            onChange={touch}
-          />
+          <VariationsField name={f.name} defaultValue={v as ProductOptions} colors={colors} onChange={touch} />
         );
       case "colors":
         return <ColorVariantsField name={f.name} defaultValue={(v as ColorVariant[]) ?? []} colors={colors} onChange={touch} />;

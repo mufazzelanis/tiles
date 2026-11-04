@@ -17,7 +17,7 @@ import { can, MODULES, type Action } from "@/lib/permissions";
 export const metadata: Metadata = { title: "Dashboard" };
 
 const DAY = 86400000;
-const STATUS_TONE = { new: "indigo", "in-progress": "amber", closed: "green" } as const;
+const STATUS_TONE = { new: "indigo", "in-progress": "amber", completed: "green", closed: "slate" } as const;
 
 /** Day buckets ending today (kept outside the component for the purity lint). */
 function dailyCounts(dates: string[], days: number) {
@@ -77,8 +77,10 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const statusSegments = [
     { key: "new", label: "New", value: newInq.length, color: SERIES.maroon, href: "/admin/inquiries?status=new" },
     { key: "in-progress", label: "In progress", value: db.inquiries.filter((i) => i.status === "in-progress").length, color: SERIES.gold, href: "/admin/inquiries?status=in-progress" },
-    { key: "closed", label: "Closed", value: db.inquiries.filter((i) => i.status === "closed").length, color: SERIES.green, href: "/admin/inquiries?status=closed" },
+    { key: "completed", label: "Completed", value: db.inquiries.filter((i) => i.status === "completed").length, color: SERIES.green, href: "/admin/inquiries?status=completed" },
+    { key: "closed", label: "Closed", value: db.inquiries.filter((i) => i.status === "closed").length, color: SERIES.slate, href: "/admin/inquiries?status=closed" },
   ];
+  // share of inquiries that turned into a completed order
   const closeRate = db.inquiries.length ? Math.round((statusSegments[2].value / db.inquiries.length) * 100) : 0;
 
   const byCategory = db.categories
@@ -214,7 +216,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             <div className="p-5">
               <StatusBar segments={statusSegments} />
               <p className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-                Close rate <b className="text-sm text-slate-900">{closeRate}%</b>
+                Completion rate <b className="text-sm text-slate-900">{closeRate}%</b>
               </p>
             </div>
           </Card>

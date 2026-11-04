@@ -6,30 +6,31 @@ import { useSelectedColor, useSelectedOption } from "@/lib/client-store";
 import { cn } from "@/lib/utils";
 
 /**
- * Product photos with hover zoom. Picking a design with its own photos swaps the gallery
- * to that design; picking a colour with a photo shows that photo (anywhere on the page).
+ * Product photos with hover zoom. Picking a variation (design / colour / size) with its own
+ * photos swaps the gallery to them; otherwise a colour photo is shown when there is one.
  */
-export function Gallery({ images: mainImages, alt, productId = "", colorPhotos = [], designPhotos = [] }: {
+export function Gallery({ images: mainImages, alt, productId = "", colorPhotos = [], variationPhotos = [], defaultVariationId = "" }: {
   images: string[];
   alt: string;
   productId?: string;
   colorPhotos?: { colorId: string; photo: string; name: string }[];
-  designPhotos?: { designId: string; images: string[]; name: string }[];
+  variationPhotos?: { variationId: string; images: string[] }[];
+  defaultVariationId?: string;
 }) {
   const selectedColor = useSelectedColor(productId, colorPhotos[0]?.colorId ?? "");
   const colorPhoto = colorPhotos.find((c) => c.colorId === selectedColor)?.photo ?? "";
-  // a design with its own photos replaces the main gallery while it's selected
-  const selectedDesign = useSelectedOption(productId, "design", designPhotos[0]?.designId ?? "");
-  const designImages = (designPhotos.find((d) => d.designId === selectedDesign) ?? designPhotos[0])?.images ?? [];
-  const images = designImages.length ? designImages : mainImages;
+  // a variation with its own photos replaces the main gallery while it's selected
+  const selectedVariation = useSelectedOption(productId, "variation", defaultVariationId || (variationPhotos[0]?.variationId ?? ""));
+  const variationImages = variationPhotos.find((v) => v.variationId === selectedVariation)?.images ?? [];
+  const images = variationImages.length ? variationImages : mainImages;
   // colour photos that aren't already in the gallery become extra thumbnails
   const all = [...images, ...colorPhotos.map((c) => c.photo).filter((p) => p && !images.includes(p))];
 
   // follow the colour choice until the visitor clicks a thumbnail themselves
-  const choice = `${selectedDesign}|${selectedColor}`;
+  const choice = `${selectedVariation}|${selectedColor}`;
   const [picked, setPicked] = useState<{ src: string; forColor: string } | null>(null);
   const manual = picked && picked.forColor === choice && all.includes(picked.src) ? picked.src : null;
-  const src = manual ?? ((designImages.length ? designImages[0] : colorPhoto) || all[0] || "");
+  const src = manual ?? ((variationImages.length ? variationImages[0] : colorPhoto) || all[0] || "");
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const label = colorPhotos.find((c) => c.photo === src)?.name;
 

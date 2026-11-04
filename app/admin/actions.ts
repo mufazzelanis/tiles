@@ -15,9 +15,12 @@ import { ALL_PERMISSIONS, can, OWNER_ROLE_ID, passwordProblems, ROLE_COLORS } fr
 import { newId, slugify } from "@/lib/utils";
 import { COLOR_FAMILIES, normalizeHex, PATTERNS } from "@/lib/colors";
 import { LAYOUT_KEY, normalizeLayout } from "@/lib/site-layout";
-import { normalizeOptions, type ProductOptions } from "@/lib/pricing";
+import { CATALOGUE_PAGE_KEY, COVER_COLORS, COVER_STYLES, normalizeCataloguePage } from "@/lib/catalogue";
+import { getCataloguePage } from "@/lib/queries";
+import { normalizeOptions, pieceArea, priceRange, sizeLabel, thicknessLabel, type ProductOptions } from "@/lib/pricing";
 import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
-import type { ColorPattern, ColorVariant, Database, InquiryStatus, Settings, TileColor, User, UserStatus } from "@/lib/types";
+import { INQUIRY_STATUSES } from "@/lib/types";
+import type { ColorPattern, Database, InquiryStatus, Settings, TileColor, User, UserStatus } from "@/lib/types";
 
 export interface FormState {
   ok?: boolean;
@@ -127,6 +130,19 @@ export async function logout() {
 
 /* ------------------------------------------------------- generic content */
 
+/** Size in bytes of an uploaded file, or of a linked one (from its Content-Length). 0 = unknown. */
+async function measureFile(url: string) {
+  if (!url || url === "#") return 0;
+  try {
+    if (url.startsWith("/uploads/")) return (await fs.stat(path.join(DATA_DIR, "uploads", path.basename(url)))).size;
+    if (/^https?:\/\//i.test(url)) {
+      const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000), redirect: "follow" });
+      return Number(res.headers.get("content-length")) || 0;
+    }
+  } catch {}
+  return 0;
+}
+
 function readField(f: FieldDef, formData: FormData): unknown {
   switch (f.type) {
     case "number": {
@@ -182,6 +198,15 @@ export async function saveResource(_: FormState, formData: FormData): Promise<Fo
   }
   if (Object.keys(errors).length) return { errors, message: "Please fix the highlighted fields." };
 
+  if (key === "catalogues") {
+    // only real sections; the designed cover always has a valid style / colour; the PDF size is measured
+    const known = new Set((await getCataloguePage()).sections.map((s) => s.id));
+    data.sections = (data.sections as string[]).filter((s) => known.has(s));
+    if (!COVER_STYLES.some((s) => s.value === data.coverStyle)) data.coverStyle = "paver";
+    if (!COVER_COLORS.some((c) => c.value === data.coverColor)) data.coverColor = "maroon";
+    data.fileSize = await measureFile(String(data.fileUrl ?? ""));
+  }
+
   const savedId = await mutate((db) => {
     const list = rows(db, key);
     const slugField = def.fields.find((f) => f.type === "slug");
@@ -193,28 +218,35 @@ export async function saveResource(_: FormState, formData: FormData): Promise<Fo
       data.slug = slug;
     }
     if (key === "products") {
-      // keep only colours that still exist (once each) and mirror their names into `color` for search
+      // variations may only use colours that exist; the product-level fields mirror the variations
+      // (colour list, first size / thickness, lowest price per piece) for search, filters and tables
       const known = new Map(db.colors.map((c) => [c.id, c]));
-      const seen = new Set<string>();
-      data.colorVariants = (data.colorVariants as ColorVariant[]).filter((v) => known.has(v.colorId) && !seen.has(v.colorId) && seen.add(v.colorId));
-      data.color = (data.colorVariants as ColorVariant[]).map((v) => known.get(v.colorId)!.name).join(", ");
-      // the first size / finish is the product's main one (filters, admin table, search)
       const options = data.options as ProductOptions;
-      data.size = options.sizes[0]?.name ?? "";
-      data.finish = options.finishes[0]?.name ?? "";
+      for (const v of options.variations) if (v.colorId && !known.has(v.colorId)) v.colorId = "";
+      const first = options.variations.find((v) => v.active) ?? options.variations[0];
+      const colorIds = [...new Set(options.variations.map((v) => v.colorId).filter(Boolean))];
+      data.colorVariants = colorIds.map((id) => ({ colorId: id, image: options.variations.find((v) => v.colorId === id && v.images.length)?.images[0] ?? "" }));
+      data.color = colorIds.map((id) => known.get(id)!.name).join(", ");
+      data.size = first ? sizeLabel(first, options.unit) || first.sqft : "";
+      data.thickness = first ? thicknessLabel(first.thickness) : "";
+      // pricing is per piece now — box fields are no longer used
+      data.piecesPerBox = 0;
+      data.sqftPerBox = first ? pieceArea(first, options.unit) : 0;
+      data.price = priceRange({ unit: options.unit, variations: options.variations.filter((v) => v.active), colorNames: {} }).min;
     }
     const now = new Date().toISOString();
     if (id) {
       const row = list.find((r) => r.id === id);
       if (!row) throw new Error("Not found");
       Object.assign(row, data, { updatedAt: now });
-      log(db, user.name, "updated", `${def.singular}: ${data[def.titleField]}`);
+      log(db, user.name, "updated", `${def.singular}: ${data[def.titleField] || "untitled"}`);
       return id;
     }
     const row: Row = { id: newId(), ...data, createdAt: now, updatedAt: now };
     if (key === "products") row.views = 0;
+    if (key === "catalogues") row.downloads = 0;
     list.unshift(row);
-    log(db, user.name, "created", `${def.singular}: ${data[def.titleField]}`);
+    log(db, user.name, "created", `${def.singular}: ${data[def.titleField] || "untitled"}`);
     return row.id;
   });
 
@@ -406,7 +438,7 @@ export async function updateInquiry(id: string, patch: { status?: InquiryStatus;
   await mutate((db) => {
     const inq = db.inquiries.find((i) => i.id === id);
     if (!inq) return;
-    if (patch.status) inq.status = patch.status;
+    if (patch.status && INQUIRY_STATUSES.includes(patch.status)) inq.status = patch.status;
     if (patch.notes !== undefined) inq.notes = patch.notes;
     inq.updatedAt = new Date().toISOString();
     log(db, user.name, "updated", `Inquiry from ${inq.name}`);
@@ -790,4 +822,24 @@ export async function saveSiteLayout(payload: string): Promise<FormState> {
   await mutate((db) => log(db, user.name, "updated", "Header, footer & contact form"));
   refreshSite();
   return { ok: true, message: "Saved — the website is updated." };
+}
+
+/* ------------------------------------------------------ catalogue page */
+
+export async function saveCataloguePage(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("catalogues", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  const page = normalizeCataloguePage(raw);
+  if (!page.sections.length) return { message: "Keep at least one section." };
+  await setSetting(CATALOGUE_PAGE_KEY, page);
+  // catalogues pointing at deleted sections fall back to the first section on the website
+  await mutate((db) => log(db, user.name, "updated", "Catalogue page & sections"));
+  refreshSite();
+  return { ok: true, message: "Saved — the Catalogue page is updated." };
 }

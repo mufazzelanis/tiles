@@ -33,7 +33,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   };
 
   const matches = (p: SiteProduct, skip?: string) =>
-    (!q || [p.name, p.code, p.color, ...p.sizes, ...p.finishes, ...p.options.designs.map((d) => d.name), p.description].join(" ").toLowerCase().includes(q)) &&
+    (!q || [p.name, p.code, p.color, ...p.sizes, ...p.finishes, ...p.designs, p.description].join(" ").toLowerCase().includes(q)) &&
     (skip === "category" || !selected.category.length || selected.category.includes(categoryById.get(p.categoryId)?.slug ?? "")) &&
     (skip === "size" || !selected.size.length || p.sizes.some((s) => selected.size.includes(s))) &&
     (skip === "finish" || !selected.finish.length || p.finishes.some((f) => selected.finish.includes(f))) &&

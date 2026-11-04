@@ -32,7 +32,7 @@ export interface FieldDef {
   /** Static options for select / multiselect */
   options?: string[];
   /** Options loaded from another collection: value = id, label = name/title */
-  source?: "categories";
+  source?: "categories" | "catalogueSections";
   /** For slug fields: the field it is generated from */
   from?: string;
   /** Layout: span both columns */
@@ -66,7 +66,10 @@ export interface ResourceDef {
 }
 
 export const FINISHES = ["Polished", "Glossy", "Satin", "Matt", "Rustic", "Lappato"];
-export const APPLICATIONS = ["Floor", "Wall", "Kitchen", "Bathroom", "Living Room", "Bedroom", "Outdoor", "Commercial"];
+export const APPLICATIONS = [
+  "Floor", "Wall", "Kitchen", "Bathroom", "Living Room", "Bedroom", "Dining Room", "Balcony", "Staircase",
+  "Rooftop", "Parking Area", "Walking Area", "Driveway", "Car Porch", "Garden & Lawn", "Swimming Pool", "Outdoor", "Commercial",
+];
 export const SIZES = ["20x120 cm", "30x60 cm", "40x40 cm", "60x60 cm", "60x120 cm", "80x80 cm", "80x160 cm", "120x240 cm"];
 export const DIVISIONS = ["Dhaka", "Chattogram", "Sylhet", "Khulna", "Rajshahi", "Barishal", "Rangpur", "Mymensingh"];
 
@@ -103,13 +106,9 @@ export const RESOURCES = {
       { name: "slug", label: "URL slug", type: "slug", from: "name" },
       { name: "code", label: "Product code / SKU", type: "text", required: true, placeholder: "NCP-6060-01" },
       { name: "categoryId", label: "Category", type: "select", source: "categories", required: true },
-      { name: "thickness", label: "Thickness", type: "text", placeholder: "9 mm" },
-      { name: "price", label: "Base price per box (৳)", type: "number", min: 0, help: "Design, finish, size and colour extras are added to this. 0 = “Price on request”." },
-      { name: "piecesPerBox", label: "Pieces / box", type: "number", min: 0, help: "Default — a size can set its own" },
-      { name: "sqftPerBox", label: "Sqft / box", type: "number", min: 0, help: "Default — a size can set its own" },
+      { name: "finish", label: "Finish", type: "select", options: FINISHES },
       { name: "applications", label: "Application areas", type: "multiselect", options: APPLICATIONS, full: true },
-      { name: "options", label: "Designs, finishes & sizes", type: "options", full: true, help: "The first option in each list is selected by default on the website." },
-      { name: "colorVariants", label: "Available colours", type: "colors", full: true, help: "Customers pick one of these. Set a price extra and a photo per colour if needed." },
+      { name: "options", label: "Variations", type: "options", full: true, help: "Each row is one design + colour + size + thickness with its own price and photos. The first row is shown first on the website." },
       { name: "description", label: "Description", type: "textarea", full: true },
       { name: "images", label: "Gallery", type: "images", full: true, help: "First image is the cover" },
       activeField,
@@ -158,7 +157,7 @@ export const RESOURCES = {
       { key: "active", label: "Status", type: "boolean" },
     ],
     fields: [
-      { name: "title", label: "Headline", type: "text", required: true },
+      { name: "title", label: "Headline", type: "text", help: "Optional — leave empty for an image-only slide" },
       { name: "subtitle", label: "Sub headline", type: "text" },
       { name: "ctaLabel", label: "Button label", type: "text", placeholder: "Find out more" },
       { name: "ctaLink", label: "Button link", type: "text", placeholder: "/products" },
@@ -255,21 +254,30 @@ export const RESOURCES = {
     key: "catalogues",
     label: "Catalogues",
     singular: "Catalogue",
-    description: "Downloadable PDF catalogues.",
+    description: "Downloadable PDF catalogues, grouped into sections on the Catalogue page.",
     titleField: "title",
-    searchFields: ["title"],
-    defaultSort: { key: "year", dir: "desc" },
+    searchFields: ["title", "subtitle", "description"],
+    defaultSort: { key: "order", dir: "asc" },
+    publicPath: "/catalogue",
     columns: [
       { key: "cover", label: "", type: "image" },
       { key: "title", label: "Title" },
       { key: "year", label: "Year", type: "number" },
+      { key: "downloads", label: "Downloads", type: "number" },
+      { key: "order", label: "Order", type: "number" },
       { key: "active", label: "Status", type: "boolean" },
     ],
     fields: [
-      { name: "title", label: "Title", type: "text", required: true },
+      { name: "title", label: "Title", type: "text", required: true, full: true, placeholder: "UDH Parking Tiles Catalogue 2026" },
+      { name: "subtitle", label: "Subtitle", type: "text", placeholder: "Complete Collection", help: "Small line on the designed cover" },
       { name: "year", label: "Year", type: "number" },
-      { name: "fileUrl", label: "PDF file", type: "file", full: true, help: "Upload a PDF or paste a link" },
-      { name: "cover", label: "Cover image", type: "image", full: true },
+      { name: "sections", label: "Show in sections", type: "multiselect", source: "catalogueSections", full: true, help: "Sections are managed under “Page & sections”. None ticked = the first section." },
+      { name: "description", label: "Description", type: "textarea", full: true, help: "Optional — shown on hover and to search engines" },
+      { name: "coverStyle", label: "Designed cover pattern", type: "select", options: ["paver", "hexagon", "grass", "herringbone", "interlock", "grid"], help: "Used when no cover image is uploaded" },
+      { name: "coverColor", label: "Designed cover colour", type: "select", options: ["maroon", "charcoal", "cream", "gold", "slate", "green"] },
+      { name: "fileUrl", label: "PDF file", type: "file", full: true, help: "Upload a PDF or paste a link — the file size is worked out automatically" },
+      { name: "cover", label: "Cover image (optional)", type: "image", full: true, help: "Leave empty to use the designed cover" },
+      { name: "order", label: "Sort order", type: "number", side: true },
       activeField,
     ],
   },

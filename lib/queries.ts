@@ -1,9 +1,12 @@
 import { cache } from "react";
 import { getDb, getSetting } from "./db";
 import { LAYOUT_KEY, normalizeLayout } from "./site-layout";
+import { CATALOGUE_PAGE_KEY, normalizeCataloguePage } from "./catalogue";
 import { toSwatch, type SwatchColor } from "./colors";
 import type { Product } from "./types";
-import { priceRange, pricedProduct, type PricedProduct } from "./pricing";
+import { priceRange, pricedProduct, sizeLabel, thicknessLabel, type PricedProduct } from "./pricing";
+
+const unique = (list: string[]) => [...new Set(list.filter(Boolean))];
 
 /** A published product with its published colours resolved (admin order) and its pricing. */
 export type SiteProduct = Product & {
@@ -11,8 +14,12 @@ export type SiteProduct = Product & {
   priced: PricedProduct;
   /** cheapest / dearest box price over every option combination */
   range: { min: number; max: number; varies: boolean };
-  /** every size and finish on offer (for filters and specs) */
+  /** every size / thickness / design / finish on offer (for filters and specs) */
   sizes: string[];
+  thicknesses: string[];
+  /** tile sizes as the admin wrote them, e.g. "12x12" */
+  sqfts: string[];
+  designs: string[];
   finishes: string[];
 };
 
@@ -37,8 +44,11 @@ export async function getSite() {
         }),
         priced,
         range: priceRange(priced),
-        sizes: p.options.sizes.length ? p.options.sizes.map((s) => s.name) : [p.size].filter(Boolean),
-        finishes: p.options.finishes.length ? p.options.finishes.map((f) => f.name) : [p.finish].filter(Boolean),
+        sizes: unique(priced.variations.map((v) => sizeLabel(v, priced.unit))),
+        thicknesses: unique(priced.variations.map((v) => thicknessLabel(v.thickness))),
+        sqfts: unique(priced.variations.map((v) => v.sqft)),
+        designs: unique(priced.variations.map((v) => v.design)),
+        finishes: [p.finish].filter(Boolean),
       };
     });
   return {
@@ -53,7 +63,7 @@ export async function getSite() {
     stores: db.stores.filter((s) => s.active),
     news: db.news.filter((n) => n.active).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
     projects: db.projects.filter((p) => p.active).sort((a, b) => b.year - a.year),
-    catalogues: db.catalogues.filter((c) => c.active).sort((a, b) => b.year - a.year),
+    catalogues: db.catalogues.filter((c) => c.active).sort((a, b) => a.order - b.order || b.year - a.year),
   };
 }
 
@@ -74,6 +84,9 @@ export async function getCatalog() {
     category: categoryById.get(p.categoryId)?.name,
   }));
 }
+
+/** Catalogue page texts and sections as configured in the admin panel. */
+export const getCataloguePage = cache(async () => normalizeCataloguePage(await getSetting(CATALOGUE_PAGE_KEY)));
 
 /** Header, footer, floating buttons and contact form as configured in the admin panel. */
 export const getSiteLayout = cache(async () => normalizeLayout(await getSetting(LAYOUT_KEY)));

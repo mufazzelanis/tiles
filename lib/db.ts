@@ -5,7 +5,7 @@ import { hashPassword } from "./password";
 import { columnSql, createTableSql, ORDER_BY, SETTINGS_TABLE_SQL, TABLES, type ColKind } from "./schema";
 import { ACTIONS, BUILT_IN_ROLES, OWNER_ROLE_ID } from "./permissions";
 import { DEFAULT_PRODUCT_COLORS, FAMILY_DEFAULT } from "./colors";
-import { normalizeOptions } from "./pricing";
+import { normalizeOptions, type LegacyProduct } from "./pricing";
 import type { Collection, Database, Settings } from "./types";
 
 /**
@@ -234,7 +234,7 @@ async function load(conn: Pool | PoolConnection): Promise<Database> {
       (out as unknown as Record<string, unknown[]>)[t] = rows.map((r) => {
         const row = Object.fromEntries(Object.entries(cols).map(([name, kind]) => [name, fromSql(kind, r[name])]));
         // product options are an object; older rows hold nothing yet
-        if (t === "products") row.options = normalizeOptions(row.options);
+        if (t === "products") row.options = normalizeOptions(row.options, row as LegacyProduct);
         return row;
       });
     }),
@@ -325,6 +325,12 @@ export function mutate<T>(fn: (db: Database) => T | Promise<T>): Promise<T> {
 }
 
 /** Hot path for the product-page view counter — a single atomic UPDATE. */
+/** Catalogue download counter — a single atomic UPDATE. */
+export async function incrementCatalogueDownloads(id: string) {
+  await ready();
+  await pool().query("UPDATE `catalogues` SET `downloads` = `downloads` + 1 WHERE `id` = ?", [id]);
+}
+
 export async function incrementProductViews(id: string) {
   await ready();
   await pool().query("UPDATE `products` SET `views` = `views` + 1 WHERE `id` = ?", [id]);

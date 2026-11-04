@@ -23,7 +23,7 @@ const EVENTS: { name: string; when: string; browser: boolean; server: boolean; m
   { name: "CustomizeProduct", when: "A tile colour is picked", browser: true, server: true },
   { name: "AddToWishlist", when: "A product is saved to favourites", browser: true, server: true },
   { name: "InitiateCheckout", when: "The “Request a quote” popup opens", browser: true, server: true },
-  { name: "Lead", when: "A quote request is sent (boxes × price, colour)", browser: true, server: true, match: true },
+  { name: "Lead", when: "A quote request is sent (pieces × price, colour)", browser: true, server: true, match: true },
   { name: "Contact", when: "Contact form sent, or phone / WhatsApp / email tapped", browser: true, server: true, match: true },
   { name: "FindLocation", when: "Store locator is opened", browser: true, server: true },
   { name: "DownloadCatalogue", when: "A PDF catalogue is downloaded (custom event)", browser: true, server: true },

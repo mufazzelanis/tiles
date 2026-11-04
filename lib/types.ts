@@ -154,9 +154,21 @@ export interface Project {
 export interface Catalogue {
   id: ID;
   title: string;
+  /** small line on the designed cover, e.g. "Complete Collection" */
+  subtitle: string;
+  description: string;
+  /** uploaded cover photo; empty = designed cover */
   cover: string;
+  coverStyle: string;
+  coverColor: string;
   fileUrl: string;
+  /** PDF size in bytes (worked out when saved) */
+  fileSize: number;
+  downloads: number;
+  /** section ids from the Catalogue page settings */
+  sections: string[];
   year: number;
+  order: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -174,7 +186,9 @@ export interface Sustainability {
   updatedAt: string;
 }
 
-export type InquiryStatus = "new" | "in-progress" | "closed";
+/** completed = the order went through; closed = finished without a sale */
+export type InquiryStatus = "new" | "in-progress" | "completed" | "closed";
+export const INQUIRY_STATUSES: InquiryStatus[] = ["new", "in-progress", "completed", "closed"];
 
 export interface Inquiry {
   id: ID;
@@ -188,7 +202,7 @@ export interface Inquiry {
   colorId: ID | "";
   colorName: string;
   colorHex: string;
-  /** quote / order requests: boxes wanted, area in sqft and delivery location */
+  /** quote / order requests: number of tile pieces wanted, area in sqft and delivery location */
   boxes: number;
   area: number;
   location: string;

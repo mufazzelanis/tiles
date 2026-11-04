@@ -1,172 +1,310 @@
 /**
- * Product options and pricing: base price + extras.
- *
- * A product has a base price per box. Each design (pattern), finish, size and colour
- * the customer can pick may add (or subtract) an amount. Sizes can also override how
- * much a box covers. The first option in each group is the default selection.
+ * Variable products. A product is sold in variations — each one a combination of
+ * design, colour, size and thickness — with its own price per piece and photos.
+ * Tiles are priced and ordered by the piece (no boxes).
+ * The customer picks attributes on the website and sees that variation's price and photo.
  * Client-safe: plain data + pure functions, shared by the admin, the website and the server.
  */
 
-export interface PriceOption {
+export type SizeUnit = "mm" | "cm";
+
+export interface Variation {
   id: string;
-  name: string;
-  /** added to the base price, in ৳ per box (may be negative) */
-  extra: number;
-}
-
-export interface DesignOption extends PriceOption {
-  /** photos of the product in this design — the gallery switches to them */
+  /** design / pattern name, e.g. "Statuario" ("" = not set) */
+  design: string;
+  /** colour from the Tile Colours library ("" = not set) */
+  colorId: string;
+  /** tile size in the product's unit */
+  width: number;
+  height: number;
+  /** thickness in mm (0 = not set) */
+  thickness: number;
+  /** price per piece in ৳ (0 = price on request) */
+  price: number;
+  /** tile size as written by the admin, e.g. "12x12" or "11x11" (shown as "Sqft") */
+  sqft: string;
   images: string[];
+  sku: string;
+  active: boolean;
+  /** offer price per piece; used instead of `price` when lower (0 = no offer) */
+  salePrice: number;
+  stock: StockStatus;
+  /** shown first on the product page (one per product; else the first row) */
+  isDefault: boolean;
 }
 
-export interface SizeOption extends PriceOption {
-  /** 0 = use the product's own pieces / sqft per box */
-  piecesPerBox: number;
-  sqftPerBox: number;
-}
+export type StockStatus = "in" | "low" | "out" | "preorder";
+export const STOCK: { value: StockStatus; label: string; tone: "green" | "amber" | "rose" | "blue" }[] = [
+  { value: "in", label: "In stock", tone: "green" },
+  { value: "low", label: "Low stock", tone: "amber" },
+  { value: "out", label: "Out of stock", tone: "rose" },
+  { value: "preorder", label: "Pre-order", tone: "blue" },
+];
+
+/** What the customer pays per piece: the offer price when it's set and lower. */
+export const effectivePrice = (v: Pick<Variation, "price" | "salePrice">) => (v.salePrice > 0 && (v.salePrice < v.price || !v.price) ? v.salePrice : v.price);
+export const onSale = (v: Pick<Variation, "price" | "salePrice">) => v.salePrice > 0 && v.price > 0 && v.salePrice < v.price;
 
 export interface ProductOptions {
-  designs: DesignOption[];
-  finishes: PriceOption[];
-  sizes: SizeOption[];
+  unit: SizeUnit;
+  variations: Variation[];
 }
 
-export type OptionGroup = "design" | "finish" | "size" | "color";
+export type Attribute = "design" | "color" | "size" | "sqft" | "thickness";
+export const ATTRIBUTES: Attribute[] = ["design", "color", "size", "sqft", "thickness"];
 
-/** What the customer picked: option id per group ("" = group not offered). */
-export type Selection = Record<OptionGroup, string>;
+export const EMPTY_OPTIONS: ProductOptions = { unit: "mm", variations: [] };
 
-export const EMPTY_OPTIONS: ProductOptions = { designs: [], finishes: [], sizes: [] };
+const SQFT_PER_SQM = 10.7639;
+
+/* -------------------------------------------------------------- sizes */
+
+export const sizeKey = (v: Pick<Variation, "width" | "height">) => (v.width && v.height ? `${v.width}x${v.height}` : "");
+export const sizeLabel = (v: Pick<Variation, "width" | "height">, unit: SizeUnit) => (v.width && v.height ? `${v.width}×${v.height} ${unit}` : "");
+export const thicknessLabel = (mm: number) => (mm ? `${mm} mm` : "");
+
+/**
+ * Floor area one piece covers, in sqft. The admin's "Sqft" value comes first — "12x12"
+ * is read as inches (= 1 sqft), a plain number as sqft — then the size in mm/cm. 0 = unknown.
+ */
+export function pieceArea(v: Pick<Variation, "width" | "height" | "sqft">, unit: SizeUnit) {
+  const text = (v.sqft ?? "").trim();
+  const inch = /^(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i.exec(text);
+  if (inch) return Math.round(((Number(inch[1]) * Number(inch[2])) / 144) * 10000) / 10000;
+  const plain = /^(\d+(?:\.\d+)?)\s*(sq\.?\s*ft|sqft)?$/i.exec(text);
+  if (plain && Number(plain[1]) > 0) return Number(plain[1]);
+  if (v.width && v.height) {
+    const m = unit === "mm" ? 1000 : 100;
+    return Math.round((v.width / m) * (v.height / m) * SQFT_PER_SQM * 10000) / 10000;
+  }
+  return 0;
+}
+
+/** "60x60 cm" / "600 x 600 mm" → numbers + unit (for older products). */
+export function parseSize(text: string): { width: number; height: number; unit: SizeUnit } | null {
+  const m = /(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)?/i.exec(text ?? "");
+  if (!m) return null;
+  return { width: Number(m[1]), height: Number(m[2]), unit: m[3]?.toLowerCase() === "cm" ? "cm" : m[3] ? "mm" : "cm" };
+}
 
 /* ----------------------------------------------------------- normalize */
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
-const money = (v: unknown) => {
+const num = (v: unknown, max = 1_000_000) => {
   const n = Math.round(Number(v) * 100) / 100;
-  return Number.isFinite(n) ? Math.max(-10_000_000, Math.min(10_000_000, n)) : 0;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0;
 };
-const positive = (v: unknown) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-};
+const text = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 let seq = 0;
-const optionId = (v: unknown, prefix: string) => (typeof v === "string" && /^[\w-]{1,40}$/.test(v) ? v : `${prefix}${Date.now().toString(36)}${++seq}`);
+const vid = (v: unknown) => (typeof v === "string" && /^[\w-]{1,40}$/.test(v) ? v : `v${Date.now().toString(36)}${++seq}`);
+const images = (v: unknown) => (Array.isArray(v) ? v : []).map((u) => String(u).trim()).filter((u) => /^(\/|https?:\/\/)/.test(u)).slice(0, 12);
 
-function base(o: Record<string, unknown>, prefix: string): PriceOption {
-  return { id: optionId(o.id, prefix), name: String(o.name ?? "").trim().slice(0, 80), extra: money(o.extra) };
+/** What older product rows hold (single size / price, and the earlier designs/sizes format). */
+export interface LegacyProduct {
+  size?: string;
+  thickness?: string;
+  price?: number;
+  piecesPerBox?: number;
+  sqftPerBox?: number;
+  colorVariants?: { colorId: string; image?: string; extra?: number }[];
 }
 
-/** Accepts anything (old rows store `[]`) and returns clean options; unnamed rows are dropped, names are unique per group. */
-export function normalizeOptions(raw: unknown): ProductOptions {
+/**
+ * Accepts anything and returns clean options. Rows from older versions — a single size/price,
+ * or the earlier "designs × sizes with extras" format — are turned into variations so every
+ * existing product keeps showing its price.
+ */
+export function normalizeOptions(raw: unknown, legacy: LegacyProduct = {}): ProductOptions {
   const r = isObj(raw) ? raw : {};
-  const list = <T extends PriceOption>(v: unknown, map: (o: Record<string, unknown>) => T) => {
+  const legacySize = parseSize(legacy.size ?? "");
+  const unit: SizeUnit = r.unit === "cm" || r.unit === "mm" ? r.unit : (legacySize?.unit ?? "mm");
+
+  if (Array.isArray(r.variations)) {
     const seen = new Set<string>();
-    return (Array.isArray(v) ? v : [])
+    const variations = r.variations
       .filter(isObj)
-      .slice(0, 40)
-      .map(map)
-      .filter((o) => o.name && !seen.has(o.name.toLowerCase()) && seen.add(o.name.toLowerCase()));
-  };
-  return {
-    designs: list(r.designs, (o) => ({
-      ...base(o, "d"),
-      images: (Array.isArray(o.images) ? o.images : []).map((u) => String(u).trim()).filter((u) => /^(\/|https?:\/\/)/.test(u)).slice(0, 12),
-    })),
-    finishes: list(r.finishes, (o) => base(o, "f")),
-    sizes: list(r.sizes, (o) => ({ ...base(o, "s"), piecesPerBox: positive(o.piecesPerBox), sqftPerBox: positive(o.sqftPerBox) })),
-  };
+      .slice(0, 200)
+      .map(
+        (v): Variation => ({
+          id: vid(v.id),
+          design: text(v.design),
+          colorId: text(v.colorId, 60),
+          width: num(v.width, 100_000),
+          height: num(v.height, 100_000),
+          thickness: num(v.thickness, 1000),
+          price: num(v.price, 10_000_000),
+          sqft: text(v.sqft, 30),
+          images: images(v.images),
+          sku: text(v.sku, 60),
+          active: v.active !== false,
+          salePrice: num(v.salePrice, 10_000_000),
+          stock: STOCK.some((s) => s.value === v.stock) ? (v.stock as StockStatus) : "in",
+          isDefault: v.isDefault === true,
+        }),
+      )
+      // one row per combination
+      .filter((v) => {
+        const key = [v.design.toLowerCase(), v.colorId, sizeKey(v), v.sqft.toLowerCase(), v.thickness].join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    return { unit, variations: oneDefault(variations) };
+  }
+
+  // ---- earlier format: { designs, finishes, sizes } with price extras on a base price
+  const base = Number(legacy.price) || 0;
+  const thickness = num(parseFloat(legacy.thickness ?? ""), 1000);
+  const oldDesigns = (Array.isArray(r.designs) ? r.designs : []).filter(isObj).map((d) => ({ name: text(d.name), extra: Number(d.extra) || 0, images: images(d.images) })).filter((d) => d.name);
+  const oldSizes = (Array.isArray(r.sizes) ? r.sizes : [])
+    .filter(isObj)
+    .map((s) => ({ parsed: parseSize(text(s.name)), extra: Number(s.extra) || 0, pcs: num(s.piecesPerBox), sqft: num(s.sqftPerBox) }))
+    .filter((s) => s.parsed);
+  const designs = oldDesigns.length ? oldDesigns : [{ name: "", extra: 0, images: [] as string[] }];
+  const sizes = oldSizes.length
+    ? oldSizes
+    : [{ parsed: legacySize, extra: 0, pcs: 0, sqft: 0 }];
+  const colors = (legacy.colorVariants ?? []).length ? legacy.colorVariants! : [{ colorId: "", image: "", extra: 0 }];
+
+  const variations: Variation[] = [];
+  for (const d of designs)
+    for (const s of sizes)
+      for (const c of colors) {
+        const price = base + d.extra + s.extra + (c.extra ?? 0);
+        variations.push({
+          // stable ids: the same old row always converts to the same variation ids
+          id: `lv${variations.length + 1}`,
+          design: d.name,
+          colorId: c.colorId,
+          width: s.parsed?.width ?? 0,
+          height: s.parsed?.height ?? 0,
+          thickness,
+          price: base > 0 || price > 0 ? Math.max(0, price) : 0,
+          sqft: "",
+          images: d.images.length ? d.images : c.image ? [c.image] : [],
+          sku: "",
+          active: true,
+          salePrice: 0,
+          stock: "in",
+          isDefault: false,
+        });
+      }
+  // a product with no size, price or options at all simply has no variations yet
+  const meaningful = variations.filter((v) => v.price || v.width || v.design || v.colorId);
+  return { unit, variations: meaningful.slice(0, 200) };
 }
 
-/* ------------------------------------------------------------- pricing */
+/** Only one default variation per product. */
+function oneDefault(list: Variation[]) {
+  let seen = false;
+  for (const v of list) {
+    if (v.isDefault && !seen) seen = true;
+    else v.isDefault = false;
+  }
+  return list;
+}
+
+/* ------------------------------------------------------------ pricing */
 
 export interface PricedProduct {
-  price: number;
-  piecesPerBox: number;
-  sqftPerBox: number;
-  options: ProductOptions;
-  /** colours with their extra, in display order */
-  colors: { id: string; name: string; extra: number }[];
+  unit: SizeUnit;
+  /** published variations only */
+  variations: Variation[];
+  /** colour names for labels (only published library colours) */
+  colorNames: Record<string, string>;
 }
 
-const first = <T extends { id: string }>(list: T[], id: string) => list.find((o) => o.id === id) ?? list[0];
-
-/** Fills in defaults (first option of each group) and drops ids that no longer exist. */
-export function resolveSelection(p: PricedProduct, picked: Partial<Selection> = {}): Selection {
+export function pricedProduct(p: { options: ProductOptions }, colorById: Map<string, { name: string }>): PricedProduct {
+  const colorNames: Record<string, string> = {};
+  for (const [id, c] of colorById) colorNames[id] = c.name;
   return {
-    design: first(p.options.designs, picked.design ?? "")?.id ?? "",
-    finish: first(p.options.finishes, picked.finish ?? "")?.id ?? "",
-    size: first(p.options.sizes, picked.size ?? "")?.id ?? "",
-    color: first(p.colors, picked.color ?? "")?.id ?? "",
+    unit: p.options.unit,
+    // a variation in a colour that was hidden or deleted is not offered
+    variations: p.options.variations.filter((v) => v.active && (!v.colorId || colorById.has(v.colorId))),
+    colorNames,
   };
+}
+
+/** Value of one attribute for a variation, as a comparable key. */
+export function attrValue(v: Variation, a: Attribute) {
+  if (a === "design") return v.design;
+  if (a === "color") return v.colorId;
+  if (a === "size") return sizeKey(v);
+  if (a === "sqft") return v.sqft.toLowerCase().replace(/\s+/g, "");
+  return v.thickness ? String(v.thickness) : "";
+}
+
+/** Attributes the customer actually chooses between (more than one value on offer). */
+export function choiceAttributes(p: PricedProduct): Attribute[] {
+  return ATTRIBUTES.filter((a) => new Set(p.variations.map((v) => attrValue(v, a))).size > 1);
+}
+
+/** The variation for an id (defaults to the first published one). */
+export const defaultVariation = (p: PricedProduct) => p.variations.find((v) => v.isDefault) ?? p.variations[0];
+export const variationFor = (p: PricedProduct, id: string) => p.variations.find((v) => v.id === id) ?? defaultVariation(p);
+
+/**
+ * Customer clicked an attribute value: keep as many of the current choices as possible.
+ * Prefers a variation matching every other current choice, then the most matches.
+ */
+export function pickVariation(p: PricedProduct, currentId: string, attr: Attribute, value: string) {
+  const cur = variationFor(p, currentId);
+  const candidates = p.variations.filter((v) => attrValue(v, attr) === value);
+  if (!cur || !candidates.length) return candidates[0]?.id ?? currentId;
+  const others = ATTRIBUTES.filter((a) => a !== attr);
+  const score = (v: Variation) => others.reduce((n, a) => n + (attrValue(v, a) === attrValue(cur, a) ? 1 : 0), 0);
+  return candidates.reduce((best, v) => (score(v) > score(best) ? v : best), candidates[0]).id;
 }
 
 export interface Quote {
-  /** price per box for this selection; 0 = price on request */
+  variation: Variation | undefined;
+  /** price per piece the customer pays (offer price when on sale); 0 = price on request */
   unitPrice: number;
-  piecesPerBox: number;
-  sqftPerBox: number;
-  /** "Design: Calacatta · Finish: Matt · Size: 60x120 cm · Colour: Gold" */
+  /** regular price, when an offer is running */
+  regularPrice: number;
+  stock: StockStatus;
+  /** floor area of one piece in sqft (0 = unknown) */
+  pieceArea: number;
+  /** "Design: Statuario · Colour: Gray · Size: 600×600 mm · Sqft: 24x24 · Thickness: 9 mm" */
   label: string;
-  lines: { group: OptionGroup; label: string; name: string; extra: number }[];
+  lines: { label: string; value: string }[];
 }
 
-const GROUP_LABEL: Record<OptionGroup, string> = { design: "Design", finish: "Finish", size: "Size", color: "Colour" };
-
-/** Price and box coverage for one selection. A base price of 0 means "price on request". */
-export function quoteFor(p: PricedProduct, picked: Partial<Selection> = {}): Quote {
-  const s = resolveSelection(p, picked);
-  const design = p.options.designs.find((o) => o.id === s.design);
-  const finish = p.options.finishes.find((o) => o.id === s.finish);
-  const size = p.options.sizes.find((o) => o.id === s.size);
-  const color = p.colors.find((o) => o.id === s.color);
-  const lines = (
-    [
-      ["design", design],
-      ["finish", finish],
-      ["size", size],
-      ["color", color],
-    ] as const
-  )
-    .filter(([, o]) => o)
-    .map(([group, o]) => ({ group, label: GROUP_LABEL[group], name: o!.name, extra: o!.extra }));
-  const unitPrice = p.price > 0 ? Math.max(0, p.price + lines.reduce((sum, l) => sum + l.extra, 0)) : 0;
+export function quoteFor(p: PricedProduct, variationId: string): Quote {
+  const v = variationFor(p, variationId);
+  if (!v) return { variation: undefined, unitPrice: 0, regularPrice: 0, stock: "in", pieceArea: 0, label: "", lines: [] };
+  const lines = [
+    { label: "Design", value: v.design },
+    { label: "Colour", value: v.colorId ? (p.colorNames[v.colorId] ?? "") : "" },
+    { label: "Size", value: sizeLabel(v, p.unit) },
+    { label: "Sqft", value: v.sqft },
+    { label: "Thickness", value: thicknessLabel(v.thickness) },
+  ].filter((l) => l.value);
   return {
-    unitPrice,
-    piecesPerBox: size?.piecesPerBox || p.piecesPerBox,
-    sqftPerBox: size?.sqftPerBox || p.sqftPerBox,
-    label: lines.map((l) => `${l.label}: ${l.name}`).join(" · "),
+    variation: v,
+    unitPrice: effectivePrice(v),
+    regularPrice: onSale(v) ? v.price : 0,
+    stock: v.stock,
+    pieceArea: pieceArea(v, p.unit),
+    label: [
+      ...lines.map((l) => `${l.label}: ${l.value}`),
+      v.sku && `SKU: ${v.sku}`,
+      // the sales team should know when a request is for something not on the shelf
+      v.stock !== "in" && `Stock: ${STOCK.find((s) => s.value === v.stock)!.label}`,
+    ].filter(Boolean).join(" · "),
     lines,
   };
 }
 
-/** Cheapest and dearest box price across all combinations (for cards, sorting and SEO). */
+/** Cheapest and dearest price the customer pays (for cards, sorting and SEO). */
 export function priceRange(p: PricedProduct) {
-  if (p.price <= 0) return { min: 0, max: 0, varies: false };
-  const groups = [p.options.designs, p.options.finishes, p.options.sizes, p.colors].filter((g) => g.length);
-  const lo = groups.reduce((s, g) => s + Math.min(...g.map((o) => o.extra)), 0);
-  const hi = groups.reduce((s, g) => s + Math.max(...g.map((o) => o.extra)), 0);
-  return { min: Math.max(0, p.price + lo), max: Math.max(0, p.price + hi), varies: lo !== hi };
+  const prices = p.variations.map(effectivePrice).filter((n) => n > 0);
+  const sale = p.variations.some(onSale);
+  if (!prices.length) return { min: 0, max: 0, varies: false, sale };
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return { min, max, varies: min !== max, sale };
 }
 
-/** Signed extra for labels: "+৳300", "−৳150", "" for 0. */
-export function formatExtra(n: number) {
-  if (!n) return "";
-  return `${n > 0 ? "+" : "−"}৳${Math.abs(n).toLocaleString("en-IN")}`;
-}
-
-/** Builds the pricing view of a product; only colours present in `colorById` (i.e. published) count. */
-export function pricedProduct(
-  p: { price: number; piecesPerBox: number; sqftPerBox: number; options: ProductOptions; colorVariants: { colorId: string; extra?: number }[] },
-  colorById: Map<string, { name: string }>,
-): PricedProduct {
-  return {
-    price: p.price,
-    piecesPerBox: p.piecesPerBox,
-    sqftPerBox: p.sqftPerBox,
-    options: p.options,
-    colors: p.colorVariants.flatMap((v) => {
-      const c = colorById.get(v.colorId);
-      return c ? [{ id: v.colorId, name: c.name, extra: v.extra ?? 0 }] : [];
-    }),
-  };
-}
+/** "৳2,500" for prices in labels. */
+export const taka = (n: number) => `৳${n.toLocaleString("en-IN")}`;

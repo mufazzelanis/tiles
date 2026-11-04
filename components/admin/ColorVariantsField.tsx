@@ -67,7 +67,8 @@ export function ColorVariantsField({ name, defaultValue, colors, onChange }: {
         hidden
         onChange={async (e) => {
           const target = uploadTarget.current;
-          const files = e.target.files;
+          // copy first: clearing the input below also empties its live FileList
+          const files = Array.from(e.target.files ?? []);
           e.target.value = "";
           if (!target || !files?.length) return;
           setUploading(target);

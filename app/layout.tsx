@@ -22,6 +22,8 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const { settings } = await getDb();
   return {
+    // absolute URLs for social share previews (Facebook / WhatsApp images)
+    metadataBase: new URL(process.env.SITE_URL || "http://localhost:3000"),
     title: { default: `${settings.siteName} — Premium Tiles`, template: `%s | ${settings.siteName}` },
     description: settings.seoDescription,
     applicationName: settings.siteName,

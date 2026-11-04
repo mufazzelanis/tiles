@@ -140,7 +140,7 @@ export function defaultLayout(): SiteLayout {
       searchTitle: "Search tiles",
       searchPlaceholder: "Name, code, colour, size…",
       searchSuggestions: ["Marble", "60x60 cm", "Bathroom", "Wood", "Glossy", "Outdoor"],
-      announcement: { enabled: false, text: "Free delivery inside Dhaka on orders above 100 boxes", linkLabel: "Shop now", href: "/products", background: "#c49a45", color: "#ffffff" },
+      announcement: { enabled: false, text: "Free delivery inside Dhaka on bulk orders", linkLabel: "Shop now", href: "/products", background: "#c49a45", color: "#ffffff" },
       logoSeal: "",
       logoMark: "",
       drawer: {

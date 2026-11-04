@@ -35,7 +35,8 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
     subject: get("subject") || (quote ? "Quote request" : "General inquiry"),
     message: get("message"),
     productId: get("productId"),
-    boxes: Math.min(1_000_000, Math.round(num("boxes"))),
+    // quantity in tile pieces (the column is still called "boxes")
+    boxes: Math.min(10_000_000, Math.round(num("pieces"))),
     area: Math.min(10_000_000, Math.round(num("area") * 10) / 10),
     location: get("location").slice(0, 200),
   };
@@ -47,7 +48,7 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
   if (quote) {
     if (data.phone.replace(/\D/g, "").length < 6) errors.phone = "Please enter a phone number we can call";
     if (data.email && !/^\S+@\S+\.\S+$/.test(data.email)) errors.email = "Please enter a valid email";
-    if (!data.boxes) errors.boxes = "How many boxes do you need?";
+    if (!data.boxes) errors.pieces = "How many pieces do you need?";
   } else {
     // the contact form is built in Admin → Header & Footer → Contact form
     const form = (await getSiteLayout()).contactForm;
@@ -81,16 +82,18 @@ export async function submitInquiry(_: InquiryState, formData: FormData): Promis
   const { reference, product, color, quoted } = await mutate((db) => {
     const now = new Date().toISOString();
     const product = db.products.find((p) => p.id === data.productId && p.active);
-    // snapshot the chosen colour so the inquiry still reads correctly if the colour is renamed or deleted later
-    const color = db.colors.find((c) => c.id === get("colorId") && c.active);
     // the price is always worked out here from the saved product — never taken from the browser
     const activeColors = new Map(db.colors.filter((c) => c.active).map((c) => [c.id, c]));
     const quoted = product
-      ? quoteFor(pricedProduct(product, activeColors), { design: get("designId"), finish: get("finishId"), size: get("sizeId"), color: color?.id ?? "" })
+      ? quoteFor(pricedProduct(product, activeColors), get("variationId"))
       : null;
+    // snapshot the colour (the variation's, else the one picked on the contact form) so the
+    // inquiry still reads correctly if the colour is renamed or deleted later
+    const colorId = quoted?.variation?.colorId || get("colorId");
+    const color = db.colors.find((c) => c.id === colorId && c.active);
     const id = newId();
     const subject = quote && product
-      ? `Quote: ${product.name}${color ? ` — ${color.name}` : ""} × ${data.boxes} box${data.boxes === 1 ? "" : "es"}`
+      ? `Quote: ${product.name}${color ? ` — ${color.name}` : ""} × ${data.boxes.toLocaleString("en-IN")} pc${data.boxes === 1 ? "" : "s"}`
       : data.subject;
     db.inquiries.unshift({
       id,

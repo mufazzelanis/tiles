@@ -51,15 +51,21 @@ export function HeroSlider({ slides, settings }: { slides: Slide[]; settings: Se
           aria-hidden={i !== index}
         >
           <div className={cn("absolute inset-0", i === index && "animate-ken-burns")}>
-            <Img src={s.image} alt="" fill loading="eager" fetchPriority={i === 0 ? "high" : "auto"} sizes="100vw" className="object-cover" />
+            <Img src={s.image} alt={s.title || ""} fill loading="eager" fetchPriority={i === 0 ? "high" : "auto"} sizes="100vw" className="object-cover" />
           </div>
-          <div className="absolute inset-0 bg-linear-to-b from-black/30 via-black/10 to-black/45" />
-          {i === index && (
+          {(s.title || s.subtitle || s.ctaLabel) && <div className="absolute inset-0 bg-linear-to-b from-black/30 via-black/10 to-black/45" />}
+          {/* image-only slide with a link: the whole slide is clickable */}
+          {i === index && s.ctaLink && !s.ctaLabel && (
+            <Link href={s.ctaLink} className="absolute inset-0 z-[1]" aria-label={s.title || "Open"} />
+          )}
+          {i === index && (s.title || s.subtitle || s.ctaLabel) && (
             <div className="relative flex h-full flex-col items-center justify-center px-6 text-center text-white">
               {s.subtitle && <p className="animate-fade-up mb-3 text-xs tracking-[0.3em] uppercase opacity-90">{s.subtitle}</p>}
-              <h1 className="animate-fade-up font-display text-3xl font-semibold drop-shadow-lg [animation-delay:120ms] sm:text-5xl">
-                {s.title}
-              </h1>
+              {s.title && (
+                <h1 className="animate-fade-up font-display text-3xl font-semibold drop-shadow-lg [animation-delay:120ms] sm:text-5xl">
+                  {s.title}
+                </h1>
+              )}
               {s.ctaLabel && (
                 <Link
                   href={s.ctaLink || "/products"}

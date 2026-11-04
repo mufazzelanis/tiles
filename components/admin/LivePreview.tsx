@@ -6,6 +6,7 @@ import type { ResourceDef } from "@/lib/resources";
 import type { SwatchColor } from "@/lib/colors";
 import type { ColorVariant } from "@/lib/types";
 import { SwatchDots } from "@/components/Swatch";
+import { CatalogueCover } from "@/components/CatalogueCover";
 import { formatPrice } from "@/lib/utils";
 
 type V = Record<string, unknown>;
@@ -17,20 +18,23 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
   const image = s(values.image ?? values.images ?? values.cover);
 
   switch (def.key) {
-    case "slides":
+    case "slides": {
+      const headline = s(values.title);
+      const hasText = !!(headline || s(values.subtitle) || s(values.ctaLabel));
       return (
         <div className="relative aspect-video overflow-hidden rounded-lg bg-slate-800">
           <Img src={image} alt="" fill sizes="300px" className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/50" />
+          {hasText && <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/50" />}
           <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-white">
             {s(values.subtitle) && <p className="mb-1 line-clamp-1 text-[7px] tracking-[0.25em] uppercase opacity-90">{s(values.subtitle)}</p>}
-            <p className="line-clamp-2 font-display text-sm leading-tight font-semibold drop-shadow">{title}</p>
+            {headline && <p className="line-clamp-2 font-display text-sm leading-tight font-semibold drop-shadow">{headline}</p>}
             {s(values.ctaLabel) && <span className="mt-2 bg-white px-2 py-1 text-[7px] tracking-wide text-slate-900 uppercase">{s(values.ctaLabel)}</span>}
           </div>
           <ArrowLeft className="absolute top-1/2 left-2 size-3 -translate-y-1/2 text-white/70" />
           <ArrowRight className="absolute top-1/2 right-2 size-3 -translate-y-1/2 text-white/70" />
         </div>
       );
+    }
     case "products": {
       const byId = new Map(colors.map((c) => [c.id, c]));
       const variants = Array.isArray(values.colorVariants) ? (values.colorVariants as ColorVariant[]) : [];
@@ -52,6 +56,19 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
         </div>
       );
     }
+    case "catalogues":
+      return s(values.cover) ? (
+        <div className="relative aspect-4/3 overflow-hidden rounded-lg bg-slate-100"><Img src={s(values.cover)} alt="" fill sizes="300px" className="object-cover" /></div>
+      ) : (
+        <CatalogueCover
+          title={s(values.title) || "Catalogue title"}
+          subtitle={s(values.subtitle)}
+          year={Number(values.year) || undefined}
+          style={s(values.coverStyle) || "paver"}
+          color={s(values.coverColor) || "maroon"}
+          className="aspect-4/3 w-full rounded-lg"
+        />
+      );
     case "stores":
       return (
         <div className="rounded-lg border border-slate-200 p-4">

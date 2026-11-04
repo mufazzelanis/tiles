@@ -7,6 +7,7 @@ import { getResource, type ResourceKey } from "@/lib/resources";
 import { PageHeader } from "@/components/admin/ui";
 import { ResourceForm } from "@/components/admin/ResourceForm";
 import { colorOptions } from "@/lib/colors";
+import { getCataloguePage } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Edit" };
 
@@ -21,9 +22,9 @@ export default async function EditResourcePage({ params }: PageProps<"/admin/[re
 
   return (
     <>
-      <PageHeader title={String(row[def.titleField] ?? def.singular)} crumbs={[{ href: `/admin/${def.key}`, label: def.label }]} />
+      <PageHeader title={String(row[def.titleField] ?? "") || `Untitled ${def.singular.toLowerCase()}`} crumbs={[{ href: `/admin/${def.key}`, label: def.label }]} />
       {/* key resets the form state when switching between records */}
-      <ResourceForm key={id} resourceKey={def.key} id={id} initial={row} categories={db.categories.map((c) => ({ value: c.id, label: c.name }))} colors={colorOptions(db.colors)} siteName={db.settings.siteName} readOnly={!can(me.permissions, def.key, "edit")} />
+      <ResourceForm key={id} resourceKey={def.key} id={id} initial={row} categories={db.categories.map((c) => ({ value: c.id, label: c.name }))} colors={colorOptions(db.colors)} lookups={{ catalogueSections: (await getCataloguePage()).sections.map((s) => ({ value: s.id, label: s.title })) }} siteName={db.settings.siteName} readOnly={!can(me.permissions, def.key, "edit")} />
     </>
   );
 }

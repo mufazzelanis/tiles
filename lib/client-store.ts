@@ -101,7 +101,8 @@ export const setSelectedColor = (productId: string, colorId: string) => setSelec
 /* ------------------------------------------------------------ quote popup */
 
 export interface QuotePreset {
-  boxes?: number;
+  /** number of tile pieces */
+  pieces?: number;
   area?: number;
 }
 

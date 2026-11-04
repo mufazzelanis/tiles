@@ -229,7 +229,7 @@ export function ResourceTable({
         return col.key === def.titleField ? (
           <span className="block min-w-0">
             <Link href={`/admin/${def.key}/${r.id}`} className="block truncate font-medium text-slate-900 hover:text-primary-600">
-              {String(v ?? "")}
+              {String(v ?? "") || <span className="text-slate-400 italic">Untitled {def.singular.toLowerCase()}</span>}
             </Link>
             <span className="block text-xs text-slate-400">Updated {timeAgo(String(r.updatedAt ?? ""))}</span>
           </span>
@@ -411,7 +411,7 @@ export function ResourceTable({
                 />
                 <div className="p-3">
                   <Link href={`/admin/${def.key}/${r.id}`} className="block truncate text-sm font-medium text-slate-900 hover:text-primary-600">
-                    {String(r[def.titleField] ?? "")}
+                    {String(r[def.titleField] ?? "") || `Untitled ${def.singular.toLowerCase()}`}
                   </Link>
                   <p className="truncate text-xs text-slate-500">
                     {def.columns

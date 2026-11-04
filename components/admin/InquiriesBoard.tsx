@@ -12,10 +12,11 @@ import { Badge, Button, Card, EmptyState } from "./ui";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { toast } from "./Toaster";
 
-const STATUSES: { value: InquiryStatus; label: string; tone: "indigo" | "amber" | "green" }[] = [
+const STATUSES: { value: InquiryStatus; label: string; tone: "indigo" | "amber" | "green" | "slate" }[] = [
   { value: "new", label: "New", tone: "indigo" },
   { value: "in-progress", label: "In progress", tone: "amber" },
-  { value: "closed", label: "Closed", tone: "green" },
+  { value: "completed", label: "Completed", tone: "green" },
+  { value: "closed", label: "Closed", tone: "slate" },
 ];
 const toneOf = (s: InquiryStatus) => STATUSES.find((x) => x.value === s)!.tone;
 
@@ -117,7 +118,7 @@ export function InquiriesBoard({
                     <span className="flex items-center gap-2">
                       <span className={cn("truncate text-sm text-slate-900", i.status === "new" && "font-semibold")}>{i.name}</span>
                       <Badge tone={toneOf(i.status)}>{i.status.replace("-", " ")}</Badge>
-                      {i.boxes > 0 && <Badge tone="blue">{i.boxes} boxes</Badge>}
+                      {i.boxes > 0 && <Badge tone="blue">{i.boxes.toLocaleString("en-IN")} pcs</Badge>}
                     </span>
                     <span className="mt-0.5 flex items-center gap-2 text-sm text-slate-700">
                       <span className="truncate">{i.subject}</span>
@@ -196,7 +197,7 @@ export function InquiriesBoard({
                   )}
                   {open.unitPrice > 0 && (
                     <p className="mt-2 flex items-baseline justify-between gap-3 text-slate-600">
-                      <span>৳{open.unitPrice.toLocaleString("en-IN")} / box{open.boxes > 0 && <> × {open.boxes}</>}</span>
+                      <span>৳{open.unitPrice.toLocaleString("en-IN")} / piece{open.boxes > 0 && <> × {open.boxes.toLocaleString("en-IN")} pcs</>}</span>
                       {open.boxes > 0 && <b className="text-base text-slate-900">≈ ৳{(open.unitPrice * open.boxes).toLocaleString("en-IN")}</b>}
                     </p>
                   )}
@@ -204,7 +205,7 @@ export function InquiriesBoard({
               )}
               {(open.boxes > 0 || open.location) && (
                 <dl className="grid grid-cols-3 divide-x divide-slate-100 rounded-lg border border-slate-200 text-center">
-                  <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Boxes</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.boxes || "—"}</dd></div>
+                  <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Pieces</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.boxes || "—"}</dd></div>
                   <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Area</dt><dd className="text-sm font-semibold text-slate-900 tabular-nums">{open.area ? `${open.area.toLocaleString()} sqft` : "—"}</dd></div>
                   <div className="p-2.5"><dt className="text-[10px] tracking-wide text-slate-400 uppercase">Deliver to</dt><dd className="truncate text-sm font-semibold text-slate-900" title={open.location}>{open.location || "—"}</dd></div>
                 </dl>
@@ -223,7 +224,7 @@ export function InquiriesBoard({
 
               <div>
                 <p className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Status</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {STATUSES.map((s) => (
                     <button
                       key={s.value}

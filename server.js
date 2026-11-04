@@ -8,6 +8,9 @@ const { createServer } = require("node:http");
 const next = require("next");
 
 const port = Number(process.env.PORT) || 3000;
+// After a form save redirects, Next fetches the target page from itself. Under Passenger the
+// app sits behind a socket, not localhost:3000, so point that request at the public site URL.
+if (process.env.SITE_URL && !process.env.__NEXT_PRIVATE_ORIGIN) process.env.__NEXT_PRIVATE_ORIGIN = process.env.SITE_URL.replace(/\/+$/, "");
 const app = next({ dev: false, dir: __dirname });
 const handle = app.getRequestHandler();
 
