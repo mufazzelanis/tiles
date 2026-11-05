@@ -9,10 +9,13 @@ export function Carousel({
   children,
   variant = "arrows",
   className,
+  bleed = false,
 }: {
   children: ReactNode;
   variant?: "arrows" | "boxed";
   className?: string;
+  /** on phones, let the slides run to the screen edges (next card peeks in) */
+  bleed?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
@@ -48,7 +51,10 @@ export function Carousel({
       <button onClick={() => scroll(-1)} disabled={edges.start} aria-label="Previous" className={cn("hidden shrink-0 transition sm:block", btn)}>
         <Prev className="size-5" />
       </button>
-      <div ref={ref} className="no-scrollbar flex min-w-0 flex-1 snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth">
+      <div ref={ref} className={cn(
+          "no-scrollbar flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth sm:gap-5",
+          bleed && "-mx-4 scroll-px-4 px-4 pb-1 sm:mx-0 sm:scroll-px-0 sm:px-0 sm:pb-0",
+        )}>
         {children}
       </div>
       <button onClick={() => scroll(1)} disabled={edges.end} aria-label="Next" className={cn("hidden shrink-0 transition sm:block", btn)}>

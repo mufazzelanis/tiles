@@ -100,7 +100,7 @@ export function HeroSlider({ slides, settings }: { slides: Slide[]; settings: Se
             {active && s.ctaLink && !s.ctaLabel && <Link href={s.ctaLink} className="absolute inset-0 z-[1]" aria-label={s.title || "Open"} />}
 
             {active && hasText && (
-              <div className="relative flex h-full flex-col items-center justify-end px-5 pb-12 text-center text-white sm:justify-center sm:px-6 sm:pb-0">
+              <div className="relative flex h-full flex-col items-center justify-end px-5 pb-14 text-center text-white sm:justify-center sm:px-6 sm:pb-0">
                 {s.subtitle && <p className="animate-fade-up mb-2 text-[10px] tracking-[0.3em] uppercase opacity-90 sm:mb-3 sm:text-xs">{s.subtitle}</p>}
                 {s.title && (
                   <h1 className="animate-fade-up font-display text-[26px] leading-tight font-semibold drop-shadow-lg [animation-delay:120ms] sm:text-5xl">
@@ -145,7 +145,7 @@ export function HeroSlider({ slides, settings }: { slides: Slide[]; settings: Se
 
       {/* dots — the active one fills up and moves to the next slide when full */}
       {count > 1 && (
-        <div className="absolute bottom-4 left-1/2 z-[2] flex -translate-x-1/2 items-center gap-2 sm:bottom-6">
+        <div className="absolute bottom-8 left-1/2 z-[2] flex -translate-x-1/2 items-center gap-2 sm:bottom-6">
           {slides.map((s, i) => (
             <button
               key={s.id}

@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { ChevronDown, Mail, Phone } from "lucide-react";
 import type { Settings } from "@/lib/types";
 import { fillTokens, type FooterConfig } from "@/lib/site-layout";
 import { NavIcon } from "@/components/NavIcon";
@@ -71,9 +71,26 @@ export function Footer({ settings, config, logo }: { settings: Settings; config:
           )}
         </div>
         {columns.map((col) => (
-          <div key={col.id}>
-            <h3 className="mb-4 text-[13px] font-semibold tracking-wide uppercase">{col.title}</h3>
-            <ul className="space-y-2.5 text-[12.5px] text-white/60">
+          <div key={col.id} className="max-sm:-my-5 max-sm:border-b max-sm:border-white/10">
+            {/* phones: tap the heading to open the column */}
+            <details className="group sm:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between py-4 text-[13px] font-semibold tracking-wide uppercase [&::-webkit-details-marker]:hidden">
+                {col.title}
+                <ChevronDown className="size-4 text-white/60 transition group-open:rotate-180" />
+              </summary>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-3 pb-5 text-[13px] text-white/65">
+                {col.links.filter((l) => l.enabled).map((l) => (
+                  <li key={l.id}>
+                    <MenuLink href={l.href} newTab={l.newTab} className="inline-flex items-center gap-1.5 transition hover:text-white">
+                      <NavIcon name={l.icon} className="size-3.5" /> {l.label}
+                      {l.badge && <span className="rounded-sm bg-leaf px-1 text-[9px] text-white">{l.badge}</span>}
+                    </MenuLink>
+                  </li>
+                ))}
+              </ul>
+            </details>
+            <h3 className="mb-4 hidden text-[13px] font-semibold tracking-wide uppercase sm:block">{col.title}</h3>
+            <ul className="hidden space-y-2.5 text-[12.5px] text-white/60 sm:block">
               {col.links.filter((l) => l.enabled).map((l) => (
                 <li key={l.id}>
                   <MenuLink href={l.href} newTab={l.newTab} className="inline-flex items-center gap-1.5 transition hover:text-white">
