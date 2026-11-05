@@ -42,27 +42,32 @@ export function TileCalculator({
   const pieces = area > 0 ? Math.ceil(needed / area) : 0;
   const cost = pieces * price;
 
-  const num = (label: string, value: number, set: (n: number) => void, step = 0.5) => (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-medium tracking-wide text-muted uppercase">{label}</span>
+  // short label on phones, full label from sm up — always one line so the inputs line up
+  const num = (label: string, value: number, set: (n: number) => void, step = 0.5, short = label) => (
+    <label className="block min-w-0">
+      <span className="mb-1 block truncate text-[11px] font-medium tracking-wide text-muted uppercase" title={label}>
+        <span className="sm:hidden">{short}</span>
+        <span className="hidden sm:inline">{label}</span>
+      </span>
       <input
         type="number"
         min={0}
         step={step}
         value={Number.isFinite(value) ? value : 0}
         onChange={(e) => set(Math.max(0, Number(e.target.value)))}
-        className="w-full border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-ink focus:outline-none"
+        inputMode="decimal"
+        className="w-full min-w-0 border border-neutral-300 bg-white px-3 py-2.5 text-base focus:border-ink focus:outline-none sm:py-2 sm:text-sm"
       />
     </label>
   );
 
   return (
     <div className="border border-neutral-200 bg-white p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-ink uppercase">
-          <Calculator className="size-4" /> Tiles calculator
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide whitespace-nowrap text-ink uppercase">
+          <Calculator className="size-4 shrink-0" /> Tiles calculator
         </h3>
-        <div className="flex border border-neutral-300 text-[11px]">
+        <div className="flex shrink-0 border border-neutral-300 text-[11px]">
           {(["ft", "m"] as const).map((u) => (
             <button key={u} type="button" onClick={() => setUnit(u)} className={`px-2.5 py-1 ${unit === u ? "bg-navy text-white" : "text-ink"}`}>
               {u === "ft" ? "Feet" : "Metres"}
@@ -71,14 +76,14 @@ export function TileCalculator({
         </div>
       </div>
       <div className={`grid gap-3 ${compact ? "grid-cols-2" : fixed ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
-        {num(`Room length (${unit})`, length, setLength)}
-        {num(`Room width (${unit})`, width, setWidth)}
-        {num("Wastage %", wastage, setWastage, 1)}
-        {!fixed && num("Sqft per piece", area, setArea, 0.01)}
+        {num(`Room length (${unit})`, length, setLength, 0.5, `Length (${unit})`)}
+        {num(`Room width (${unit})`, width, setWidth, 0.5, `Width (${unit})`)}
+        {num("Wastage %", wastage, setWastage, 1, "Wastage %")}
+        {!fixed && num("Sqft per piece", area, setArea, 0.01, "Sqft / pc")}
       </div>
       {fixed ? (
         // the tile comes from the product — customers can't change it by mistake
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border border-neutral-200 bg-mist/50 px-3 py-2 text-[12px]">
+        <div className="mt-3 flex flex-col gap-1 border border-neutral-200 bg-mist/50 px-3 py-2 text-[12px] sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <span className="text-muted">
             Tile{sizeLabel && <> <b className="text-ink">{sizeLabel}</b></>} · <b className="text-ink">{area.toLocaleString("en-IN", { maximumFractionDigits: 2 })} sqft</b> per piece
           </span>
