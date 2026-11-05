@@ -15,7 +15,7 @@ export default function CalculatorPage() {
           <h2 className="mb-3 font-display text-lg font-semibold text-ink">How it works</h2>
           <ol className="list-decimal space-y-2 pl-5">
             <li>Measure the length and width of the room.</li>
-            <li>Add 5–10% wastage for cuts (15% for diagonal or herringbone layouts).</li>
+            <li>About 2% wastage is added for cuts by default — raise it for diagonal or herringbone layouts.</li>
             <li>Pick your tile size (e.g. 12x12 or 24x24) — on a product page it is filled in for you, with the price per piece.</li>
           </ol>
           <p className="mt-4">For L-shaped rooms, split the area into rectangles and add them up.</p>

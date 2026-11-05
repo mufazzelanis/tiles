@@ -33,7 +33,8 @@ export function TileCalculator({
   const [unit, setUnit] = useState<"ft" | "m">("ft");
   const [length, setLength] = useState(12);
   const [width, setWidth] = useState(10);
-  const [wastage, setWastage] = useState(10);
+  // 2% for cuts by default — the customer can change it
+  const [wastage, setWastage] = useState(2);
   const [area, setArea] = useState(Math.round(initialArea * 10000) / 10000 || 1);
 
   const areaSqft = length * width * (unit === "m" ? SQFT_PER_SQM : 1);

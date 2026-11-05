@@ -163,7 +163,7 @@ function QuoteForm({ product, colors, priced, phone, preset, onClose, onDone }: 
   const [length, setLength] = useState(12);
   const [width, setWidth] = useState(10);
   const [measure, setMeasure] = useState<"ft" | "m">("ft");
-  const [wastage, setWastage] = useState(10);
+  const [wastage, setWastage] = useState(2);
 
   const roomSqft = length * width * (measure === "m" ? SQFT_PER_SQM : 1);
   const roomPieces = sqft > 0 ? Math.ceil((roomSqft * (1 + wastage / 100)) / sqft) : 0;
