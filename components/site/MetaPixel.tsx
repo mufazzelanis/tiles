@@ -33,7 +33,10 @@ export function MetaPixel({ pixelId }: { pixelId: string | null }) {
       if (href.startsWith("tel:")) trackEvent("Contact", { method: "phone" });
       else if (/wa\.me|whatsapp\.com/.test(href)) trackEvent("Contact", { method: "whatsapp" });
       else if (href.startsWith("mailto:")) trackEvent("Contact", { method: "email" });
-      else if (/\.pdf($|\?)/i.test(href)) trackEvent("DownloadCatalogue", { content_name: a?.textContent?.trim().slice(0, 80) || href });
+      else if (/\.pdf($|\?)/i.test(href) || /^\/catalogue\/[^/]+\/download/.test(href)) {
+        const label = a?.getAttribute("aria-label") || a?.closest("[data-catalogue]")?.getAttribute("data-catalogue") || a?.textContent?.trim();
+        trackEvent("DownloadCatalogue", { content_name: (label || href).slice(0, 80), status: href.includes("view=1") ? "view" : "download" });
+      }
     };
     document.addEventListener("click", onClick, { capture: true });
     return () => document.removeEventListener("click", onClick, { capture: true });

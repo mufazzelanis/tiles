@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Calculator, ShoppingBag } from "lucide-react";
 import { openQuote } from "@/lib/client-store";
+import { trackEvent } from "@/lib/meta-pixel";
 import { cn } from "@/lib/utils";
 
 const SQFT_PER_SQM = 10.7639;
@@ -42,6 +43,18 @@ export function TileCalculator({
   const pieces = area > 0 ? Math.ceil(needed / area) : 0;
   const cost = pieces * price;
 
+  // tell Meta once per visit that the calculator was really used (after the visitor stops typing)
+  const touched = useRef(false);
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!touched.current || reported.current) return;
+    const t = setTimeout(() => {
+      reported.current = true;
+      trackEvent("UseCalculator", { num_items: pieces, value: cost || undefined, currency: cost ? "BDT" : undefined, content_name: sizeLabel || undefined });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [length, width, wastage, area, unit, pieces, cost, sizeLabel]);
+
   // short label on phones, full label from sm up — always one line so the inputs line up
   const num = (label: string, value: number, set: (n: number) => void, step = 0.5, short = label) => (
     <label className="block min-w-0">
@@ -54,7 +67,10 @@ export function TileCalculator({
         min={0}
         step={step}
         value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => set(Math.max(0, Number(e.target.value)))}
+        onChange={(e) => {
+          touched.current = true;
+          set(Math.max(0, Number(e.target.value)));
+        }}
         inputMode="decimal"
         className="w-full min-w-0 border border-neutral-300 bg-white px-3 py-2.5 text-base focus:border-ink focus:outline-none sm:py-2 sm:text-sm"
       />

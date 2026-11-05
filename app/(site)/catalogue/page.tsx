@@ -61,7 +61,7 @@ function Card({ c }: { c: Catalogue }) {
   const hasFile = !!c.fileUrl && c.fileUrl !== "#";
   const size = formatBytes(c.fileSize);
   return (
-    <article className="group border border-neutral-200 bg-white transition hover:-translate-y-0.5 hover:shadow-xl">
+    <article data-catalogue={c.title} className="group border border-neutral-200 bg-white transition hover:-translate-y-0.5 hover:shadow-xl">
       <div className="relative aspect-4/3 overflow-hidden bg-mist">
         {c.cover ? (
           <Img src={c.cover} alt={c.title} fill sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw" className="object-cover transition duration-700 group-hover:scale-105" />
