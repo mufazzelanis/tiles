@@ -162,6 +162,7 @@ export const RESOURCES = {
       { name: "ctaLabel", label: "Button label", type: "text", placeholder: "Find out more" },
       { name: "ctaLink", label: "Button link", type: "text", placeholder: "/products" },
       { name: "image", label: "Background image", type: "image", required: true, full: true, help: "Landscape, at least 1920×900" },
+      { name: "mobileImage", label: "Mobile image (optional)", type: "image", full: true, help: "Portrait or square banner for phones (e.g. 1080×1350). Without it, phones show the whole background image." },
       { name: "order", label: "Sort order", type: "number", side: true },
       activeField,
     ],

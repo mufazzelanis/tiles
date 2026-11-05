@@ -135,9 +135,9 @@ export function createSeed(adminHash: string, adminEmail: string): Database {
     colors,
     products,
     slides: [
-      { id: "sld-1", title: "Echoes of Excellence", subtitle: "Herringbone wood tiles that bring warmth to every room", image: u("1618221195710-dd6b41faaea6", 2200), ctaLabel: "Find out more", ctaLink: "/products", order: 1, active: true, ...stamp },
-      { id: "sld-2", title: "Timeless Marble, Modern Living", subtitle: "Nano Crystal Polish collection", image: u("1600585154340-be6161a56a0c", 2200), ctaLabel: "Explore collection", ctaLink: "/products?category=nano-crystal-polish", order: 2, active: true, ...stamp },
-      { id: "sld-3", title: "Bathrooms Reimagined", subtitle: "Glazed porcelain made for wet spaces", image: u("1552321554-5fefe8c9ef14", 2200), ctaLabel: "Shop bathroom", ctaLink: "/products?application=Bathroom", order: 3, active: true, ...stamp },
+      { id: "sld-1", title: "Echoes of Excellence", subtitle: "Herringbone wood tiles that bring warmth to every room", image: u("1618221195710-dd6b41faaea6", 2200), mobileImage: "", ctaLabel: "Find out more", ctaLink: "/products", order: 1, active: true, ...stamp },
+      { id: "sld-2", title: "Timeless Marble, Modern Living", subtitle: "Nano Crystal Polish collection", image: u("1600585154340-be6161a56a0c", 2200), mobileImage: "", ctaLabel: "Explore collection", ctaLink: "/products?category=nano-crystal-polish", order: 2, active: true, ...stamp },
+      { id: "sld-3", title: "Bathrooms Reimagined", subtitle: "Glazed porcelain made for wet spaces", image: u("1552321554-5fefe8c9ef14", 2200), mobileImage: "", ctaLabel: "Shop bathroom", ctaLink: "/products?application=Bathroom", order: 3, active: true, ...stamp },
     ],
     stores: divisions.flatMap((d, i) => [
       { id: `str-${i}-a`, name: `UDH Display Center — ${d}`, type: "Display Center", division: d, address: `Main Road, ${d} City`, phone: `+880 1711-00${i}00${i}`, mapUrl: `https://maps.google.com/?q=${encodeURIComponent(d + " Bangladesh")}`, active: true, ...stamp },

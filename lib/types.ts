@@ -102,6 +102,8 @@ export interface Slide {
   title: string;
   subtitle: string;
   image: string;
+  /** optional tall / square banner for phones; without it phones show the whole desktop image */
+  mobileImage: string;
   ctaLabel: string;
   ctaLink: string;
   order: number;

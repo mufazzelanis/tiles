@@ -25,7 +25,7 @@ export const TABLES: Record<Collection, Record<string, ColKind>> = {
     color: "string", colorVariants: "json", options: "json", thickness: "string", applications: "json", piecesPerBox: "int", sqftPerBox: "float", price: "float",
     images: "json", description: "text", featured: "bool", isNew: "bool", active: "bool", views: "int", ...ts,
   },
-  slides: { id: "id", title: "string", subtitle: "string", image: "text", ctaLabel: "string", ctaLink: "string", order: "int", active: "bool", ...ts },
+  slides: { id: "id", title: "string", subtitle: "string", image: "text", mobileImage: "text", ctaLabel: "string", ctaLink: "string", order: "int", active: "bool", ...ts },
   stores: { id: "id", name: "string", type: "string", division: "string", address: "text", phone: "string", mapUrl: "text", active: "bool", ...ts },
   news: { id: "id", title: "string", slug: "string", type: "string", image: "text", excerpt: "text", content: "text", publishedAt: "datetime", active: "bool", ...ts },
   projects: { id: "id", title: "string", slug: "string", client: "string", location: "string", year: "int", image: "text", description: "text", active: "bool", ...ts },

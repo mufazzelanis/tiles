@@ -22,6 +22,8 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
       const headline = s(values.title);
       const hasText = !!(headline || s(values.subtitle) || s(values.ctaLabel));
       return (
+        <>
+        <p className="mb-1.5 text-[10px] font-medium tracking-wide text-slate-400 uppercase">Desktop</p>
         <div className="relative aspect-video overflow-hidden rounded-lg bg-slate-800">
           <Img src={image} alt="" fill sizes="300px" className="object-cover" />
           {hasText && <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/50" />}
@@ -33,6 +35,8 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
           <ArrowLeft className="absolute top-1/2 left-2 size-3 -translate-y-1/2 text-white/70" />
           <ArrowRight className="absolute top-1/2 right-2 size-3 -translate-y-1/2 text-white/70" />
         </div>
+        <SlidePhonePreview image={image} mobileImage={s(values.mobileImage)} headline={headline} subtitle={s(values.subtitle)} cta={s(values.ctaLabel)} />
+        </>
       );
     }
     case "products": {
@@ -119,6 +123,35 @@ export function SearchPreview({ title, path, description, siteName }: { title: s
       <p className="truncate text-xs text-slate-500">yourdomain.com{path}</p>
       <p className="line-clamp-1 text-[15px] text-[#1a0dab]">{title || "Page title"} | {siteName}</p>
       <p className="line-clamp-2 text-xs text-slate-600">{description || "Add a description to control what search engines show here."}</p>
+    </div>
+  );
+}
+
+/** How a hero slide looks on a phone: its mobile image, or the whole banner over a blurred copy. */
+function SlidePhonePreview({ image, mobileImage, headline, subtitle, cta }: { image: string; mobileImage: string; headline: string; subtitle: string; cta: string }) {
+  const hasText = !!(headline || subtitle || cta);
+  return (
+    <div className="mt-4">
+      <p className="mb-1.5 text-[10px] font-medium tracking-wide text-slate-400 uppercase">Phone</p>
+      <div className="mx-auto w-36 rounded-[18px] border-4 border-slate-800 bg-slate-800 shadow-lg">
+        <div className={`relative overflow-hidden rounded-[12px] bg-slate-900 ${mobileImage ? "aspect-4/5" : "aspect-16/11"}`}>
+          {mobileImage ? (
+            <Img src={mobileImage} alt="" fill sizes="144px" className="object-cover" />
+          ) : (
+            <>
+              <Img src={image} alt="" fill sizes="80px" className="scale-125 object-cover opacity-70 blur-md" />
+              <Img src={image} alt="" fill sizes="144px" className="object-contain" />
+            </>
+          )}
+          {hasText && <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />}
+          <div className="absolute inset-x-0 bottom-2 flex flex-col items-center px-2 text-center text-white">
+            {subtitle && <p className="line-clamp-1 text-[5px] tracking-[0.2em] uppercase opacity-90">{subtitle}</p>}
+            {headline && <p className="line-clamp-2 font-display text-[9px] leading-tight font-semibold">{headline}</p>}
+            {cta && <span className="mt-1 bg-white px-1.5 py-0.5 text-[5px] tracking-wide text-slate-900 uppercase">{cta}</span>}
+          </div>
+        </div>
+      </div>
+      {!mobileImage && <p className="mt-1.5 text-center text-[10px] text-slate-400">Add a mobile image for a taller phone banner</p>}
     </div>
   );
 }

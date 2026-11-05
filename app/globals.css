@@ -91,6 +91,23 @@ body {
   animation: ken-burns 7s ease-out both;
 }
 
+/* hero slider: the active dot fills up while the slide is shown */
+@keyframes slide-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-slide-progress {
+  transform-origin: left;
+  animation: slide-progress var(--slide-ms, 6500ms) linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ken-burns,
+  .animate-slide-progress {
+    animation: none;
+  }
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: none; }
