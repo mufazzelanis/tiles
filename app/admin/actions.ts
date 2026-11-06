@@ -17,6 +17,7 @@ import { COLOR_FAMILIES, normalizeHex, PATTERNS } from "@/lib/colors";
 import { LAYOUT_KEY, normalizeLayout } from "@/lib/site-layout";
 import { CATALOGUE_PAGE_KEY, COVER_COLORS, COVER_STYLES, normalizeCataloguePage } from "@/lib/catalogue";
 import { getCataloguePage } from "@/lib/queries";
+import { HOME_ROOMS_KEY, normalizeHomeRooms } from "@/lib/home-rooms";
 import { normalizeOptions, pieceArea, priceRange, sizeLabel, thicknessLabel, type ProductOptions } from "@/lib/pricing";
 import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
 import { INQUIRY_STATUSES } from "@/lib/types";
@@ -842,4 +843,24 @@ export async function saveCataloguePage(payload: string): Promise<FormState> {
   await mutate((db) => log(db, user.name, "updated", "Catalogue page & sections"));
   refreshSite();
   return { ok: true, message: "Saved — the Catalogue page is updated." };
+}
+
+/* ------------------------------------------------------ home: shop by room */
+
+export async function saveHomeRooms(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  const rooms = normalizeHomeRooms(raw);
+  const noPhoto = rooms.rooms.find((r) => r.enabled && !r.image);
+  if (noPhoto) return { message: `Add a photo for “${noPhoto.name}”.` };
+  await setSetting(HOME_ROOMS_KEY, rooms);
+  await mutate((db) => log(db, user.name, "updated", "Home page — Shop by Room"));
+  refreshSite();
+  return { ok: true, message: "Saved — the home page is updated." };
 }

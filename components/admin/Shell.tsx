@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Bell, BookOpen, ChevronLeft, ChevronRight, ExternalLink, FolderKanban, GalleryHorizontal, Images, Inbox, KeyRound,
-  LayoutDashboard, Leaf, LogOut, MapPin, Megaphone, Menu, PanelsTopLeft, Newspaper, Package, Palette, Search,
+  LayoutDashboard, Leaf, LogOut, MapPin, Sofa, Megaphone, Menu, PanelsTopLeft, Newspaper, Package, Palette, Search,
   Settings, ShieldCheck, Tags, Users, X,
 } from "lucide-react";
 import { logout } from "@/app/admin/actions";
@@ -48,6 +48,7 @@ export const NAV = [
     group: "Website",
     items: [
       { href: "/admin/slides", label: "Hero Slider", icon: GalleryHorizontal },
+      { href: "/admin/settings/rooms", label: "Shop by Room", icon: Sofa },
       { href: "/admin/news", label: "News & Blog", icon: Newspaper },
       { href: "/admin/projects", label: "Projects", icon: FolderKanban },
       { href: "/admin/sustainability", label: "Sustainability", icon: Leaf },

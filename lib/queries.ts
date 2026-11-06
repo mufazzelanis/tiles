@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getDb, getSetting } from "./db";
 import { LAYOUT_KEY, normalizeLayout } from "./site-layout";
 import { CATALOGUE_PAGE_KEY, normalizeCataloguePage } from "./catalogue";
+import { HOME_ROOMS_KEY, normalizeHomeRooms } from "./home-rooms";
 import { toSwatch, type SwatchColor } from "./colors";
 import type { Product } from "./types";
 import { priceRange, pricedProduct, sizeLabel, thicknessLabel, type PricedProduct } from "./pricing";
@@ -87,6 +88,9 @@ export async function getCatalog() {
 
 /** Catalogue page texts and sections as configured in the admin panel. */
 export const getCataloguePage = cache(async () => normalizeCataloguePage(await getSetting(CATALOGUE_PAGE_KEY)));
+
+/** Home page "Shop by Room" section as configured in the admin panel. */
+export const getHomeRooms = cache(async () => normalizeHomeRooms(await getSetting(HOME_ROOMS_KEY)));
 
 /** Header, footer, floating buttons and contact form as configured in the admin panel. */
 export const getSiteLayout = cache(async () => normalizeLayout(await getSetting(LAYOUT_KEY)));

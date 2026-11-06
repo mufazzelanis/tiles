@@ -14,10 +14,9 @@ import {
   Store,
 } from "lucide-react";
 import Img from "@/components/Img";
-import { getCatalog, getSite } from "@/lib/queries";
+import { getCatalog, getHomeRooms, getSite } from "@/lib/queries";
 import { Reveal } from "@/components/site/Reveal";
 import { RecentlyViewed } from "@/components/site/ProductLists";
-import { SEED_IMAGES } from "@/lib/seed";
 import { HeroSlider } from "@/components/site/HeroSlider";
 import { BrandIntro } from "@/components/site/BrandIntro";
 import { Carousel } from "@/components/site/Carousel";
@@ -39,15 +38,16 @@ export default async function Home() {
   const featured = products.filter((p) => p.featured).slice(0, 12);
   const catalog = await getCatalog();
 
-  // "Shop by room" tiles, each with a live product count
-  const rooms = [
-    { name: "Living Room", image: SEED_IMAGES.livingRoom2 },
-    { name: "Bathroom", image: SEED_IMAGES.bathroom3 },
-    { name: "Kitchen", image: SEED_IMAGES.kitchen },
-    { name: "Bedroom", image: SEED_IMAGES.bedroom },
-    { name: "Outdoor", image: SEED_IMAGES.house },
-    { name: "Commercial", image: SEED_IMAGES.interior3 },
-  ].map((r) => ({ ...r, count: products.filter((p) => p.applications.includes(r.name)).length }));
+  // "Shop by room" tiles (Admin → Shop by Room), each with a live product count
+  const roomCfg = await getHomeRooms();
+  const rooms = roomCfg.enabled
+    ? roomCfg.rooms
+        .filter((r) => r.enabled && r.image)
+        .map((r) => ({ ...r, count: products.filter((p) => p.applications.includes(r.application)).length }))
+        .filter((r) => !roomCfg.hideEmpty || r.count > 0)
+    : [];
+  // phones: the first room (and the last, when it would sit alone) spans the full width
+  const wide = (i: number) => i === 0 || (i === rooms.length - 1 && rooms.length % 2 === 0);
 
   return (
     <>
@@ -125,28 +125,24 @@ export default async function Home() {
       </section>
 
       {/* Shop by room — on phones the first room is a wide feature tile */}
+      {rooms.length > 0 && (
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <Reveal>
-          <h2 className="section-title">Shop by Room</h2>
+          <h2 className="section-title">{roomCfg.title || "Shop by Room"}</h2>
         </Reveal>
         <div className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-10 sm:gap-4 md:grid-cols-3">
           {rooms.map((r, i) => (
-            <Reveal key={r.name} delay={i * 70} className={i === 0 || (i === rooms.length - 1 && rooms.length % 2 === 0) ? "col-span-2 sm:col-span-1" : ""}>
+            <Reveal key={r.id} delay={i * 70} className={wide(i) ? "col-span-2 sm:col-span-1" : ""}>
               <Link
-                href={`/products?application=${encodeURIComponent(r.name)}`}
-                className={`group relative block overflow-hidden rounded-2xl bg-neutral-900 transition-transform active:scale-[0.98] sm:aspect-4/3 sm:rounded-none ${i === 0 || (i === rooms.length - 1 && rooms.length % 2 === 0) ? "aspect-[16/9]" : "aspect-square"}`}
+                href={`/products?application=${encodeURIComponent(r.application)}`}
+                className={`group relative block overflow-hidden rounded-2xl bg-neutral-900 transition-transform active:scale-[0.98] sm:aspect-4/3 sm:rounded-none ${wide(i) ? "aspect-[16/9]" : "aspect-square"}`}
               >
                 <Img src={r.image} alt={r.name} fill sizes="(max-width:768px) 50vw, 33vw" className="object-cover opacity-85 transition duration-700 group-hover:scale-110 group-hover:opacity-60" />
                 <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/10 to-transparent" />
-                {i === 0 && (
-                  <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-navy uppercase sm:hidden">
-                    Most loved
-                  </span>
-                )}
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-3 text-white sm:p-4">
                   <div>
-                    <p className={`font-display font-semibold sm:text-xl ${i === 0 ? "text-xl" : "text-[15px]"}`}>{r.name}</p>
-                    <p className="text-[11px] text-white/75">{r.count} designs</p>
+                    <p className={`font-display font-semibold sm:text-xl ${wide(i) ? "text-xl" : "text-[15px]"}`}>{r.name}</p>
+                    {roomCfg.showCount && <p className="text-[11px] text-white/75">{r.count} design{r.count === 1 ? "" : "s"}</p>}
                   </div>
                   <span className="grid size-8 place-items-center rounded-full bg-white/15 backdrop-blur transition group-hover:bg-white group-hover:text-ink sm:size-9">
                     <ArrowUpRight className="size-4" />
@@ -157,6 +153,7 @@ export default async function Home() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Categories */}
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">

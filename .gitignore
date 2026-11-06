@@ -43,3 +43,7 @@ next-env.d.ts
 
 # local JSON database + uploaded media
 /data
+
+# graphify (local code map for Claude Code; never committed or deployed)
+/graphify-out/
+/.graphifyignore
