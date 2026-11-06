@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -14,7 +15,10 @@ import {
   Store,
 } from "lucide-react";
 import Img from "@/components/Img";
-import { getCatalog, getHomeRooms, getSite } from "@/lib/queries";
+import { getCatalog, getHomePatterns, getHomeRooms, getHomeSections, getHomeThickness, getSite } from "@/lib/queries";
+import { pickRowProducts, type HomeSectionKey } from "@/lib/home-sections";
+import { PaverArt } from "@/components/CatalogueCover";
+import { OrderSteps, PaverPatterns, ThicknessGuide } from "@/components/site/ParkingSections";
 import { Reveal } from "@/components/site/Reveal";
 import { RecentlyViewed } from "@/components/site/ProductLists";
 import { HeroSlider } from "@/components/site/HeroSlider";
@@ -35,26 +39,35 @@ const QUICK = [
 
 export default async function Home() {
   const { settings, slides, products, categories, categoryById, sustainability, stores } = await getSite();
-  const featured = products.filter((p) => p.featured).slice(0, 12);
   const catalog = await getCatalog();
 
-  // "Shop by room" tiles (Admin → Shop by Room), each with a live product count
+  const sections = await getHomeSections();
+  // products row: newest uploads appear automatically (Admin → Home page → Products row)
+  const featured = pickRowProducts(products, sections);
+
+  // "Shop by area" tiles (Admin → Shop by Area), each with a live product count
   const roomCfg = await getHomeRooms();
-  const rooms = roomCfg.enabled
-    ? roomCfg.rooms
-        .filter((r) => r.enabled && r.image)
-        .map((r) => ({ ...r, count: products.filter((p) => p.applications.includes(r.application)).length }))
-        .filter((r) => !roomCfg.hideEmpty || r.count > 0)
-    : [];
+  const patternCfg = await getHomePatterns();
+  const thicknessCfg = await getHomeThickness();
+  const rooms = roomCfg.rooms
+    .filter((r) => r.enabled)
+    .map((r) => ({ ...r, count: products.filter((p) => p.applications.includes(r.application)).length }))
+    .filter((r) => !roomCfg.hideEmpty || r.count > 0);
   // phones: the first room (and the last, when it would sit alone) spans the full width
   const wide = (i: number) => i === 0 || (i === rooms.length - 1 && rooms.length % 2 === 0);
 
-  return (
-    <>
-      <HeroSlider slides={slides} settings={settings} />
+  const visible = sections.order.filter((k) => !sections.hidden.includes(k));
+  const stats = { products: products.length, categories: categories.length, stores: stores.length, divisions: new Set(stores.map((s) => s.division)).size };
+  // the shortcuts card overlaps the banner only when it sits right under it
+  const overlapHero = visible[visible.indexOf("quick") - 1] === "hero" && slides.length > 0;
 
-      {/* phones: search + shortcuts card that overlaps the bottom of the hero */}
-      <div className="relative z-[3] -mt-5 px-4 sm:hidden">
+  // every section, rendered in the order set in Admin → Home page
+  const blocks: Record<HomeSectionKey, () => React.ReactNode> = {
+    hero: () => <HeroSlider slides={slides} settings={settings} />,
+
+    /* phones: search + shortcuts card */
+    quick: () => (
+      <div className={`relative z-[3] px-4 sm:hidden ${overlapHero ? "-mt-5" : "mt-4"}`}>
         <div className="rounded-2xl bg-white p-3 shadow-[0_12px_35px_-12px_rgba(118,3,8,0.35)] ring-1 ring-navy/5">
           <form action="/products" className="flex items-center gap-2 rounded-xl bg-mist px-3 ring-1 ring-navy/5 focus-within:ring-navy/30">
             <Search className="size-4 shrink-0 text-muted" />
@@ -81,16 +94,16 @@ export default async function Home() {
           </nav>
         </div>
       </div>
+    ),
 
-      <BrandIntro
-        settings={settings}
-        stats={{ products: products.length, categories: categories.length, stores: stores.length, divisions: new Set(stores.map((s) => s.division)).size }}
-      />
+    welcome: () => <BrandIntro settings={settings} stats={stats} showPromises={false} />,
+    promises: () => <BrandIntro settings={settings} stats={stats} showWelcome={false} />,
 
-      {/* Discover */}
+    featured: () =>
+      featured.length > 0 && (
       <section className="mx-auto max-w-6xl px-4 pt-10 pb-8 sm:px-6 sm:pt-16 sm:pb-12">
-        <SectionTitle>{settings.homeIntroTitle}</SectionTitle>
-        <p className="mx-auto mt-3 line-clamp-2 max-w-5xl text-center text-[13px] leading-relaxed text-muted sm:mt-5 sm:line-clamp-none">{settings.homeIntroText}</p>
+        {settings.homeIntroTitle && <SectionTitle>{settings.homeIntroTitle}</SectionTitle>}
+        {settings.homeIntroText && <p className="mx-auto mt-3 line-clamp-2 max-w-5xl text-center text-[13px] leading-relaxed text-muted sm:mt-5 sm:line-clamp-none">{settings.homeIntroText}</p>}
 
         <Carousel bleed className="mt-6 sm:mt-10">
           {featured.map((p) => (
@@ -123,12 +136,14 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+    ),
 
-      {/* Shop by room — on phones the first room is a wide feature tile */}
-      {rooms.length > 0 && (
+    /* on phones the first area is a wide feature tile */
+    areas: () =>
+      rooms.length > 0 && (
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <Reveal>
-          <h2 className="section-title">{roomCfg.title || "Shop by Room"}</h2>
+          <h2 className="section-title">{roomCfg.title || "Shop by Area"}</h2>
         </Reveal>
         <div className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-10 sm:gap-4 md:grid-cols-3">
           {rooms.map((r, i) => (
@@ -137,7 +152,11 @@ export default async function Home() {
                 href={`/products?application=${encodeURIComponent(r.application)}`}
                 className={`group relative block overflow-hidden rounded-2xl bg-neutral-900 transition-transform active:scale-[0.98] sm:aspect-4/3 sm:rounded-none ${wide(i) ? "aspect-[16/9]" : "aspect-square"}`}
               >
-                <Img src={r.image} alt={r.name} fill sizes="(max-width:768px) 50vw, 33vw" className="object-cover opacity-85 transition duration-700 group-hover:scale-110 group-hover:opacity-60" />
+                {r.image ? (
+                  <Img src={r.image} alt={r.name} fill sizes="(max-width:768px) 50vw, 33vw" className="object-cover opacity-85 transition duration-700 group-hover:scale-110 group-hover:opacity-60" />
+                ) : (
+                  <PaverArt style={r.pattern} color={r.color} label={r.name} className="absolute inset-0 size-full transition duration-700 group-hover:scale-110" />
+                )}
                 <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-3 text-white sm:p-4">
                   <div>
@@ -153,9 +172,12 @@ export default async function Home() {
           ))}
         </div>
       </section>
-      )}
+      ),
 
-      {/* Categories */}
+    thickness: () => <ThicknessGuide cfg={thicknessCfg} />,
+    patterns: () => <PaverPatterns cfg={patternCfg} />,
+
+    categories: () => (
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <Reveal>
           <SectionTitle>Explore Tiles Collections by Category</SectionTitle>
@@ -182,26 +204,33 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+    ),
 
-      {/* phones: calculator promo */}
-      <section className="px-4 pb-4 sm:hidden">
-        <Link href="/tiles-calculator" className="relative flex items-center gap-4 overflow-hidden rounded-2xl bg-linear-to-br from-navy to-brand p-5 text-white shadow-lg shadow-navy/25 active:scale-[0.99]">
+    calculator: () => (
+      <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-8">
+        <Link href="/tiles-calculator" className="group relative flex items-center gap-4 overflow-hidden rounded-2xl bg-linear-to-br from-navy to-brand p-5 text-white shadow-lg shadow-navy/25 active:scale-[0.99] sm:gap-6 sm:p-8">
+          <PaverArt style="interlock" color="maroon" className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-1/2 opacity-40 mask-l-from-0% sm:block" />
           <span aria-hidden className="absolute -top-10 -right-10 size-36 rounded-full border-[18px] border-white/10" />
           <span aria-hidden className="absolute -bottom-12 right-16 size-24 rounded-full border-[12px] border-leaf/30" />
-          <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur">
-            <Calculator className="size-6" />
+          <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur sm:size-16">
+            <Calculator className="size-6 sm:size-8" />
           </span>
           <span className="relative min-w-0 flex-1">
-            <span className="block font-display text-[17px] leading-tight font-semibold">How many tiles do you need?</span>
-            <span className="mt-1 block text-[12px] text-white/75">Enter your room size — get pieces in seconds.</span>
+            <span className="block font-display text-[17px] leading-tight font-semibold sm:text-2xl">How many tiles do you need?</span>
+            <span className="mt-1 block text-[12px] text-white/75 sm:text-sm">Enter the length and width of your area — get the number of pieces and the price in seconds.</span>
           </span>
-          <ChevronRight className="relative size-5 shrink-0" />
+          <span className="relative hidden items-center gap-2 rounded-xl bg-white px-5 py-3 text-[13px] font-semibold text-navy shadow-lg transition group-hover:gap-3 sm:flex">
+            Open calculator <ChevronRight className="size-4" />
+          </span>
+          <ChevronRight className="relative size-5 shrink-0 sm:hidden" />
         </Link>
       </section>
+    ),
 
-      <RecentlyViewed catalog={catalog} title="Continue browsing" />
+    steps: () => <OrderSteps />,
+    recent: () => <RecentlyViewed catalog={catalog} title="Continue browsing" />,
 
-      {/* Why choose */}
+    why: () => (
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <Reveal>
           <SectionTitle>{settings.whyTitle}</SectionTitle>
@@ -229,8 +258,10 @@ export default async function Home() {
           </div>
         )}
       </section>
+    ),
 
-      {/* Popular — compact list cards on phones, big circles on larger screens */}
+    /* compact list cards on phones, big circles on larger screens */
+    popular: () => (
       <section className="mt-2 bg-mist py-10 sm:mt-6 sm:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <Reveal>
@@ -238,7 +269,7 @@ export default async function Home() {
           </Reveal>
           <div className="mt-6 grid gap-2.5 sm:mt-12 sm:grid-cols-3 sm:gap-12">
             {[
-              { href: "/news?type=Tiles+Care", title: "Tiles Care", Icon: Sparkles, text: "Learn to maintain tiles with a delicate touch, a few smart cleaning procedures and tips & tricks on how to make your tiles last longer and keep your walls and floors looking as good as new." },
+              { href: "/news?type=Tiles+Care", title: "Tiles Care", Icon: Sparkles, text: "Keep your parking tiles looking new: simple cleaning, re-sanding the joints, removing oil stains and sealing tips that make pavers last for years." },
               { href: "/projects", title: "Projects", Icon: FolderKanban, text: `${settings.siteName} has always been prioritizing versatility and premium quality in each and every project. Get to know some of our nationwide projects.` },
               { href: "/news", title: "News & Events", Icon: Newspaper, text: "We keep all stakeholders informed about current events. Learn more about what is happening around. Stay updated with our events and updates." },
             ].map(({ href, title, Icon, text }) => (
@@ -260,9 +291,10 @@ export default async function Home() {
           </div>
         </div>
       </section>
+    ),
 
-      {/* Sustainability */}
-      {sustainability.length > 0 && (
+    sustainability: () =>
+      sustainability.length > 0 && (
         <section className="bg-mist pt-2 pb-10 sm:pt-4 sm:pb-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <Reveal>
@@ -271,7 +303,14 @@ export default async function Home() {
             </Reveal>
           </div>
         </section>
-      )}
+      ),
+  };
+
+  return (
+    <>
+      {visible.map((k) => (
+        <Fragment key={k}>{blocks[k]()}</Fragment>
+      ))}
     </>
   );
 }

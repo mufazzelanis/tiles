@@ -15,8 +15,10 @@ const TABS = [
   { id: "seo", label: "SEO", icon: Globe },
 ] as const;
 
-export function SettingsForm({ settings, canEdit = true }: { settings: Settings; canEdit?: boolean }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("brand");
+type TabId = (typeof TABS)[number]["id"];
+
+export function SettingsForm({ settings, canEdit = true, initialTab }: { settings: Settings; canEdit?: boolean; initialTab?: string }) {
+  const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === initialTab) ? (initialTab as TabId) : "brand");
   const [state, action, pending] = useActionState<FormState, FormData>(saveSettings, {});
   const [video, setVideo] = useState(settings.videoId);
 
@@ -74,8 +76,8 @@ export function SettingsForm({ settings, canEdit = true }: { settings: Settings;
           {panel(
             "home",
             <>
-              {input("homeIntroTitle", "Intro heading", settings.homeIntroTitle)}
-              {input("homeIntroText", "Intro text", settings.homeIntroText, { area: true })}
+              {input("homeIntroTitle", "Products row heading", settings.homeIntroTitle, { help: "The heading above the products row on the home page, e.g. “Discover our parking tiles”. Leave empty to hide it." })}
+              {input("homeIntroText", "Products row text", settings.homeIntroText, { area: true, help: "The short text under that heading. Leave empty to hide it." })}
               {input("whyTitle", "“Why choose us” heading", settings.whyTitle)}
               {input("whyText", "“Why choose us” text", settings.whyText, { area: true })}
               <label className="block">

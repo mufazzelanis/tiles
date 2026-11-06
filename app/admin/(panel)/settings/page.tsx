@@ -9,7 +9,8 @@ import { SettingsForm } from "@/components/admin/SettingsForm";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: PageProps<"/admin/settings">) {
+  const { tab } = await searchParams;
   const me = await requirePermission("settings", "view");
   const { settings } = await getDb();
   return (
@@ -28,7 +29,7 @@ export default async function SettingsPage() {
           </>
         }
       />
-      <SettingsForm settings={settings} canEdit={can(me.permissions, "settings", "edit")} />
+      <SettingsForm settings={settings} canEdit={can(me.permissions, "settings", "edit")} initialTab={typeof tab === "string" ? tab : undefined} />
     </>
   );
 }

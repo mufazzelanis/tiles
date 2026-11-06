@@ -111,3 +111,23 @@ export function CatalogueCover({ title, subtitle, year, style = "paver", color =
     </div>
   );
 }
+
+/** Full-bleed drawing of a paver pattern — used where a photo is missing (areas, pattern cards). */
+export function PaverArt({ style = "paver", color = "maroon", className, label }: { style?: string; color?: string; className?: string; label?: string }) {
+  const c = coverColor(color);
+  const valid = ["paver", "hexagon", "grass", "herringbone", "interlock", "grid"].includes(style) ? (style as CoverStyle) : "paver";
+  const id = `pa-${valid}-${color}`;
+  return (
+    <svg className={cn("block", className)} style={{ background: c.bg }} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      <defs>
+        <Pattern id={id} style={valid} stroke={c.accent} />
+        <radialGradient id={`${id}-glow`} cx="70%" cy="20%" r="80%">
+          <stop offset="0" stopColor="#fff" stopOpacity=".18" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} opacity=".8" />
+      <rect width="100%" height="100%" fill={`url(#${id}-glow)`} />
+    </svg>
+  );
+}

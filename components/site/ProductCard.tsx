@@ -63,8 +63,11 @@ export function ProductCard({ product, categoryName }: { product: CardProduct; c
           </span>
         )}
       </div>
-      {!!product.swatches?.length && <SwatchDots colors={product.swatches} max={5} size={14} className="mt-2 text-ink" />}
-      <span className="mt-1.5 inline-block text-[11px] font-bold text-brand group-hover:underline">learn more</span>
+      {/* colours on the left, link on the right — never on top of each other */}
+      <div className="mt-2 flex min-h-[18px] items-center justify-between gap-2">
+        {product.swatches?.length ? <SwatchDots colors={product.swatches} max={4} size={14} className="min-w-0 text-ink" /> : <span />}
+        <span className="shrink-0 text-[11px] font-bold text-brand group-hover:underline">Learn more</span>
+      </div>
     </Link>
   );
 }

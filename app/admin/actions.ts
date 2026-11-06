@@ -18,6 +18,9 @@ import { LAYOUT_KEY, normalizeLayout } from "@/lib/site-layout";
 import { CATALOGUE_PAGE_KEY, COVER_COLORS, COVER_STYLES, normalizeCataloguePage } from "@/lib/catalogue";
 import { getCataloguePage } from "@/lib/queries";
 import { HOME_ROOMS_KEY, normalizeHomeRooms } from "@/lib/home-rooms";
+import { HOME_SECTIONS_KEY, normalizeHomeSections } from "@/lib/home-sections";
+import { HOME_PATTERNS_KEY, normalizeHomePatterns } from "@/lib/home-patterns";
+import { HOME_THICKNESS_KEY, normalizeHomeThickness } from "@/lib/home-thickness";
 import { normalizeOptions, pieceArea, priceRange, sizeLabel, thicknessLabel, type ProductOptions } from "@/lib/pricing";
 import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
 import { INQUIRY_STATUSES } from "@/lib/types";
@@ -856,11 +859,60 @@ export async function saveHomeRooms(payload: string): Promise<FormState> {
   } catch {
     return { message: "Couldn't read the changes — please try again." };
   }
-  const rooms = normalizeHomeRooms(raw);
-  const noPhoto = rooms.rooms.find((r) => r.enabled && !r.image);
-  if (noPhoto) return { message: `Add a photo for “${noPhoto.name}”.` };
-  await setSetting(HOME_ROOMS_KEY, rooms);
-  await mutate((db) => log(db, user.name, "updated", "Home page — Shop by Room"));
+  // an area without a photo shows its drawn paver pattern
+  await setSetting(HOME_ROOMS_KEY, normalizeHomeRooms(raw));
+  await mutate((db) => log(db, user.name, "updated", "Home page — Shop by Area"));
+  refreshSite();
+  return { ok: true, message: "Saved — the home page is updated." };
+}
+
+/* ------------------------------------------------------ home: sections on/off + order */
+
+export async function saveHomeSections(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  await setSetting(HOME_SECTIONS_KEY, normalizeHomeSections(raw));
+  await mutate((db) => log(db, user.name, "updated", "Home page sections"));
+  refreshSite();
+  return { ok: true, message: "Saved — the home page is updated." };
+}
+
+/* ------------------------------------------------------ home: paver patterns */
+
+export async function saveHomePatterns(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  await setSetting(HOME_PATTERNS_KEY, normalizeHomePatterns(raw));
+  await mutate((db) => log(db, user.name, "updated", "Home page — Paver patterns"));
+  refreshSite();
+  return { ok: true, message: "Saved — the home page is updated." };
+}
+
+/* ------------------------------------------------------ home: thickness guide */
+
+export async function saveHomeThickness(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  await setSetting(HOME_THICKNESS_KEY, normalizeHomeThickness(raw));
+  await mutate((db) => log(db, user.name, "updated", "Home page — Thickness guide"));
   refreshSite();
   return { ok: true, message: "Saved — the home page is updated." };
 }

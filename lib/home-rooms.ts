@@ -1,5 +1,6 @@
 /**
- * Home page "Shop by Room" section — set in Admin → Shop by Room.
+ * Home page "Shop by area" section — set in Admin → Shop by Area.
+ * (Stored under the old "home-rooms" key so earlier saves keep working.)
  * Client-safe: plain data + pure functions.
  */
 
@@ -11,35 +12,39 @@ export interface HomeRoom {
   name: string;
   /** product "Application area" the tile links to and counts */
   application: string;
+  /** photo; empty = drawn paver pattern */
   image: string;
+  /** paver pattern + colour drawn when there is no photo */
+  pattern: string;
+  color: string;
   enabled: boolean;
 }
 
 export interface HomeRooms {
+  /** kept for older saves; the section is switched on/off in Admin → Home page */
   enabled: boolean;
   title: string;
-  /** hide rooms that have no products yet (so the site never shows "0 designs") */
+  /** hide areas that have no products yet (so the site never shows "0 designs") */
   hideEmpty: boolean;
-  /** show the "N designs" line under each room */
+  /** show the "N designs" line under each area */
   showCount: boolean;
   rooms: HomeRoom[];
 }
 
-const unsplash = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1400&q=80`;
-
 export function defaultHomeRooms(): HomeRooms {
+  const area = (id: string, name: string, application: string, pattern: string, color: string): HomeRoom => ({ id, name, application, image: "", pattern, color, enabled: true });
   return {
     enabled: true,
-    title: "Shop by Room",
+    title: "Shop by Area",
     hideEmpty: true,
     showCount: true,
     rooms: [
-      { id: "living", name: "Living Room", application: "Living Room", image: unsplash("1618220179428-22790b461013"), enabled: true },
-      { id: "bath", name: "Bathroom", application: "Bathroom", image: unsplash("1620626011761-996317b8d101"), enabled: true },
-      { id: "kitchen", name: "Kitchen", application: "Kitchen", image: unsplash("1600566753190-17f0baa2a6c3"), enabled: true },
-      { id: "bed", name: "Bedroom", application: "Bedroom", image: unsplash("1505691938895-1758d7feb511"), enabled: true },
-      { id: "outdoor", name: "Outdoor", application: "Outdoor", image: unsplash("1600047509807-ba8f99d2cdde"), enabled: true },
-      { id: "commercial", name: "Commercial", application: "Commercial", image: unsplash("1600210492486-724fe5c67fb0"), enabled: true },
+      area("parking", "Car Parking", "Parking Area", "interlock", "maroon"),
+      area("driveway", "Driveway", "Driveway", "paver", "charcoal"),
+      area("walkway", "Walkway", "Walking Area", "herringbone", "cream"),
+      area("rooftop", "Rooftop", "Rooftop", "grid", "slate"),
+      area("garden", "Garden & Lawn", "Garden & Lawn", "grass", "green"),
+      area("commercial", "Commercial", "Commercial", "hexagon", "gold"),
     ],
   };
 }
@@ -47,6 +52,8 @@ export function defaultHomeRooms(): HomeRooms {
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown, d: string, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : d);
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
+const PATTERNS = ["paver", "hexagon", "grass", "herringbone", "interlock", "grid"];
+const COLORS = ["maroon", "charcoal", "cream", "gold", "slate", "green"];
 
 /** Fills gaps and drops anything malformed (also used to validate what the admin saves). */
 export function normalizeHomeRooms(raw: unknown): HomeRooms {
@@ -60,6 +67,8 @@ export function normalizeHomeRooms(raw: unknown): HomeRooms {
           name: str(r.name, ""),
           application: str(r.application, ""),
           image: str(r.image, "", 2000),
+          pattern: PATTERNS.includes(String(r.pattern)) ? String(r.pattern) : PATTERNS[i % PATTERNS.length],
+          color: COLORS.includes(String(r.color)) ? String(r.color) : COLORS[i % COLORS.length],
           enabled: bool(r.enabled, true),
         }))
         .filter((r) => r.name)

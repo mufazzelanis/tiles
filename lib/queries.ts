@@ -3,6 +3,9 @@ import { getDb, getSetting } from "./db";
 import { LAYOUT_KEY, normalizeLayout } from "./site-layout";
 import { CATALOGUE_PAGE_KEY, normalizeCataloguePage } from "./catalogue";
 import { HOME_ROOMS_KEY, normalizeHomeRooms } from "./home-rooms";
+import { HOME_SECTIONS_KEY, normalizeHomeSections } from "./home-sections";
+import { HOME_PATTERNS_KEY, normalizeHomePatterns } from "./home-patterns";
+import { HOME_THICKNESS_KEY, normalizeHomeThickness } from "./home-thickness";
 import { toSwatch, type SwatchColor } from "./colors";
 import type { Product } from "./types";
 import { priceRange, pricedProduct, sizeLabel, thicknessLabel, type PricedProduct } from "./pricing";
@@ -91,6 +94,15 @@ export const getCataloguePage = cache(async () => normalizeCataloguePage(await g
 
 /** Home page "Shop by Room" section as configured in the admin panel. */
 export const getHomeRooms = cache(async () => normalizeHomeRooms(await getSetting(HOME_ROOMS_KEY)));
+
+/** Which home page sections are shown, and in what order. */
+export const getHomeSections = cache(async () => normalizeHomeSections(await getSetting(HOME_SECTIONS_KEY)));
+
+/** Home page "Popular paver patterns" cards. */
+export const getHomePatterns = cache(async () => normalizeHomePatterns(await getSetting(HOME_PATTERNS_KEY)));
+
+/** Home page "Which thickness do I need?" guide. */
+export const getHomeThickness = cache(async () => normalizeHomeThickness(await getSetting(HOME_THICKNESS_KEY)));
 
 /** Header, footer, floating buttons and contact form as configured in the admin panel. */
 export const getSiteLayout = cache(async () => normalizeLayout(await getSetting(LAYOUT_KEY)));

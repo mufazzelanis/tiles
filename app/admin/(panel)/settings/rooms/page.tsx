@@ -9,7 +9,7 @@ import { APPLICATIONS } from "@/lib/resources";
 import { PageHeader } from "@/components/admin/ui";
 import { HomeRoomsEditor } from "@/components/admin/HomeRoomsEditor";
 
-export const metadata: Metadata = { title: "Shop by Room" };
+export const metadata: Metadata = { title: "Shop by Area" };
 
 export default async function HomeRoomsSettings() {
   const me = await requirePermission("settings", "view");
@@ -20,8 +20,8 @@ export default async function HomeRoomsSettings() {
   return (
     <>
       <PageHeader
-        title="Shop by Room"
-        description="The room tiles on the home page. Each one opens the products made for that application area."
+        title="Shop by Area"
+        description="The area tiles on the home page (car parking, driveway, walkway…). Each one opens the products made for that application area."
         crumbs={[{ href: "/admin/settings", label: "Settings" }]}
         actions={
           <Link href="/" target="_blank" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">

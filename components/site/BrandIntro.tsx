@@ -13,7 +13,15 @@ const PROMISES = [
 ];
 
 /** Brand welcome band shown right under the hero. */
-export function BrandIntro({ settings, stats }: { settings: Settings; stats: { products: number; categories: number; stores: number; divisions: number } }) {
+export function BrandIntro({ settings, stats, showWelcome = true, showPromises = true }: {
+  settings: Settings;
+  stats: { products: number; categories: number; stores: number; divisions: number };
+  /** logo, intro text and counters */
+  showWelcome?: boolean;
+  /** the 4-promise strip underneath */
+  showPromises?: boolean;
+}) {
+  if (!showWelcome && !showPromises) return null;
   const [first, ...rest] = settings.siteName.split(" ");
   // a "0" looks empty, so only numbers we can be proud of are shown
   const figures = [
@@ -29,6 +37,7 @@ export function BrandIntro({ settings, stats }: { settings: Settings; stats: { p
       <div aria-hidden className="pointer-events-none absolute -top-40 -left-40 size-[420px] rounded-full border-[40px] border-navy/[0.04]" />
       <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-32 size-[360px] rounded-full border-[30px] border-leaf/10" />
 
+      {showWelcome && (
       <div className="relative mx-auto grid max-w-6xl items-center gap-6 px-4 pt-10 pb-8 sm:gap-10 sm:px-6 sm:py-14 md:grid-cols-[auto_1fr] md:gap-14 md:py-20">
         <Reveal className="mx-auto">
           <div className="relative grid size-[150px] place-items-center sm:size-[240px]">
@@ -80,9 +89,11 @@ export function BrandIntro({ settings, stats }: { settings: Settings; stats: { p
           )}
         </Reveal>
       </div>
+      )}
 
       {/* promises: a swipeable strip on phones, a row on larger screens */}
-      <div className="relative border-t border-navy/10 bg-white/60">
+      {showPromises && (
+      <div className={`relative bg-white/60 ${showWelcome ? "border-t border-navy/10" : ""}`}>
         <ul className="no-scrollbar mx-auto flex max-w-6xl snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-px-4 px-4 py-3 sm:grid sm:grid-cols-2 sm:gap-px sm:overflow-visible sm:px-6 sm:py-0 lg:grid-cols-4">
           {PROMISES.map(({ icon: Icon, title, text }, i) => (
             <li key={title} className="w-[68%] shrink-0 snap-start sm:w-auto">
@@ -99,6 +110,7 @@ export function BrandIntro({ settings, stats }: { settings: Settings; stats: { p
           ))}
         </ul>
       </div>
+      )}
     </section>
   );
 }

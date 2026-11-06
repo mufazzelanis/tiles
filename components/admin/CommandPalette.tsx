@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight, BookOpen, CornerDownLeft, ExternalLink, FileText, FolderKanban, GalleryHorizontal, Images, Inbox,
-  LayoutDashboard, Leaf, MapPin, Megaphone, Sofa, PanelsTopLeft, Newspaper, Package, Palette, Plus, Search, Settings, ShieldCheck, Tags, UserCircle, Users,
+  LayoutDashboard, Leaf, MapPin, Megaphone, Sofa, House, Grid3x3, Layers, PanelsTopLeft, Newspaper, Package, Palette, Plus, Search, Settings, ShieldCheck, Tags, UserCircle, Users,
 } from "lucide-react";
 import Img from "@/components/Img";
 import { can, type Action } from "@/lib/permissions";
@@ -82,7 +82,10 @@ export function CommandPalette({
         ["/admin/roles", "Roles & Permissions", ShieldCheck],
         ["/admin/settings", "Settings", Settings],
         ["/admin/settings/layout", "Header & Footer", PanelsTopLeft],
-        ["/admin/settings/rooms", "Shop by Room (home page)", Sofa],
+        ["/admin/settings/home", "Home page sections (on / off, order)", House],
+        ["/admin/settings/rooms", "Shop by Area (home page)", Sofa],
+        ["/admin/settings/thickness", "Thickness Guide (home page)", Layers],
+        ["/admin/settings/patterns", "Paver Patterns (home page)", Grid3x3],
         ["/admin/settings/layout?tab=form", "Contact form fields", PanelsTopLeft],
         ["/admin/settings/meta", "Facebook Pixel & Conversions API", Megaphone],
         ["/admin/account", "My account", UserCircle],
