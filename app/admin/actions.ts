@@ -21,6 +21,7 @@ import { HOME_ROOMS_KEY, normalizeHomeRooms } from "@/lib/home-rooms";
 import { HOME_SECTIONS_KEY, normalizeHomeSections } from "@/lib/home-sections";
 import { HOME_PATTERNS_KEY, normalizeHomePatterns } from "@/lib/home-patterns";
 import { HOME_THICKNESS_KEY, normalizeHomeThickness } from "@/lib/home-thickness";
+import { HOME_CONTENT_KEY, normalizeHomeContent, txt } from "@/lib/home-content";
 import { normalizeOptions, pieceArea, priceRange, sizeLabel, thicknessLabel, type ProductOptions } from "@/lib/pricing";
 import { contextFrom, DEFAULT_API_VERSION, getTrackingConfig, saveTrackingConfig, sendServerEvent, type DeliveryLog } from "@/lib/tracking";
 import { INQUIRY_STATUSES } from "@/lib/types";
@@ -913,6 +914,38 @@ export async function saveHomeThickness(payload: string): Promise<FormState> {
   }
   await setSetting(HOME_THICKNESS_KEY, normalizeHomeThickness(raw));
   await mutate((db) => log(db, user.name, "updated", "Home page — Thickness guide"));
+  refreshSite();
+  return { ok: true, message: "Saved — the home page is updated." };
+}
+
+/* ------------------------------------------------------ home: section texts */
+
+/** Saves the texts / links / lists of every home section (Admin → Home page → Edit content). */
+export async function saveHomeContent(payload: string): Promise<FormState> {
+  const { user, allowed } = await checkPermission("settings", "edit");
+  if (!allowed) return DENIED;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return { message: "Couldn't read the changes — please try again." };
+  }
+  const content = normalizeHomeContent(raw);
+  // these four live in Settings (shared with Settings → Home page)
+  const introTitle = txt(content.featured, "title");
+  const introText = txt(content.featured, "text");
+  const whyTitle = txt(content.why, "title");
+  const whyText = txt(content.why, "text");
+  content.featured = { ...content.featured, title: "", text: "" };
+  content.why = { ...content.why, title: "", text: "" };
+  await setSetting(HOME_CONTENT_KEY, content);
+  await mutate((db) => {
+    db.settings.homeIntroTitle = introTitle;
+    db.settings.homeIntroText = introText;
+    db.settings.whyTitle = whyTitle;
+    db.settings.whyText = whyText;
+    log(db, user.name, "updated", "Home page texts");
+  });
   refreshSite();
   return { ok: true, message: "Saved — the home page is updated." };
 }

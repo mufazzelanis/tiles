@@ -6,6 +6,7 @@ import { HOME_ROOMS_KEY, normalizeHomeRooms } from "./home-rooms";
 import { HOME_SECTIONS_KEY, normalizeHomeSections } from "./home-sections";
 import { HOME_PATTERNS_KEY, normalizeHomePatterns } from "./home-patterns";
 import { HOME_THICKNESS_KEY, normalizeHomeThickness } from "./home-thickness";
+import { HOME_CONTENT_KEY, normalizeHomeContent } from "./home-content";
 import { toSwatch, type SwatchColor } from "./colors";
 import type { Product } from "./types";
 import { priceRange, pricedProduct, sizeLabel, thicknessLabel, type PricedProduct } from "./pricing";
@@ -103,6 +104,18 @@ export const getHomePatterns = cache(async () => normalizeHomePatterns(await get
 
 /** Home page "Which thickness do I need?" guide. */
 export const getHomeThickness = cache(async () => normalizeHomeThickness(await getSetting(HOME_THICKNESS_KEY)));
+
+/**
+ * Texts, links and lists of the home page sections. The products-row and why-choose
+ * headings/texts are kept in Settings and filled in here.
+ */
+export const getHomeContent = cache(async () => {
+  const [raw, db] = await Promise.all([getSetting(HOME_CONTENT_KEY), getDb()]);
+  const content = normalizeHomeContent(raw);
+  content.featured = { ...content.featured, title: db.settings.homeIntroTitle, text: db.settings.homeIntroText };
+  content.why = { ...content.why, title: db.settings.whyTitle, text: db.settings.whyText };
+  return content;
+});
 
 /** Header, footer, floating buttons and contact form as configured in the admin panel. */
 export const getSiteLayout = cache(async () => normalizeLayout(await getSetting(LAYOUT_KEY)));

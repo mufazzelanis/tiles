@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Bike, Bus, Calculator, Car, Factory, Footprints, LayoutGrid, MessageCircle, PackageCheck, Send, Truck } from "lucide-react";
+import { ArrowRight, Bike, Bus, Car, Factory, Footprints, MessageCircle, Truck } from "lucide-react";
 import Img from "@/components/Img";
 import { PaverArt } from "@/components/CatalogueCover";
 import type { HomePatterns } from "@/lib/home-patterns";
 import type { HomeThickness } from "@/lib/home-thickness";
+import { txt, type SectionContent } from "@/lib/home-content";
+import { HomeIcon } from "@/components/HomeIcon";
 import { Reveal } from "./Reveal";
 import { SectionTitle } from "./PageHero";
 
@@ -140,36 +142,35 @@ export function PaverPatterns({ cfg }: { cfg: HomePatterns }) {
 
 /* ------------------------------------------------------------------ how ordering works */
 
-const STEPS = [
-  { Icon: LayoutGrid, title: "Choose a design", text: "Pick the pattern, colour and thickness.", href: "/products", cta: "Browse designs" },
-  { Icon: Calculator, title: "Measure your area", text: "Enter length × width — we work out the pieces.", href: "/tiles-calculator", cta: "Open calculator" },
-  { Icon: Send, title: "Send an order request", text: "No payment now. It takes under a minute.", href: "/products", cta: "Start ordering" },
-  { Icon: PackageCheck, title: "We confirm & deliver", text: "We call with the final price, then deliver to your site.", href: "/store-locator", cta: "Find a store" },
-];
-
-export function OrderSteps() {
+/** Texts and steps are set in Admin → Home page → How ordering works. */
+export function OrderSteps({ cfg }: { cfg: SectionContent }) {
+  const steps = cfg.items ?? [];
+  if (!steps.length) return null;
+  const cols = steps.length === 1 ? "" : steps.length === 2 ? "sm:grid-cols-2" : steps.length === 3 ? "sm:grid-cols-3" : steps.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3";
   return (
     <section className="relative overflow-hidden bg-navy py-10 text-white sm:py-14">
       <PaverArt style="interlock" color="maroon" className="pointer-events-none absolute inset-0 size-full opacity-25" />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="text-center">
-          <p className="text-[10px] font-semibold tracking-[0.3em] text-leaf uppercase sm:text-[11px]">Simple & quick</p>
-          <h2 className="mt-1.5 font-display text-2xl font-semibold sm:text-3xl">How Ordering Works</h2>
+          {txt(cfg, "eyebrow") && <p className="text-[10px] font-semibold tracking-[0.3em] text-leaf uppercase sm:text-[11px]">{txt(cfg, "eyebrow")}</p>}
+          {txt(cfg, "title") && <h2 className="mt-1.5 font-display text-2xl font-semibold sm:text-3xl">{txt(cfg, "title")}</h2>}
         </Reveal>
-        <div role="list" className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-          {STEPS.map(({ Icon, title, text, href, cta }, i) => (
-            <Reveal key={title} delay={i * 90}>
+        <div role="list" className={`mt-8 grid gap-3 sm:mt-10 sm:gap-4 ${cols}`}>
+          {steps.map(({ icon, title, text, link, linkLabel }, i) => (
+            <Reveal key={i} delay={i * 90}>
               <div role="listitem" className="relative flex h-full gap-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10 backdrop-blur-sm sm:flex-col sm:p-5">
                 <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-navy shadow-lg">
-                  <Icon className="size-5" />
+                  <HomeIcon name={icon} className="size-5" />
                   <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-leaf text-[11px] font-bold text-white ring-2 ring-navy">{i + 1}</span>
                 </span>
                 <div className="min-w-0">
                   <p className="text-[15px] font-semibold">{title}</p>
-                  <p className="mt-1 text-[12.5px] leading-snug text-white/70">{text}</p>
-                  <Link href={href} className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-leaf hover:underline">
-                    {cta} <ArrowRight className="size-3.5" />
-                  </Link>
+                  {text && <p className="mt-1 text-[12.5px] leading-snug text-white/70">{text}</p>}
+                  {linkLabel && link && (
+                    <Link href={link} className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-leaf hover:underline">
+                      {linkLabel} <ArrowRight className="size-3.5" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </Reveal>
