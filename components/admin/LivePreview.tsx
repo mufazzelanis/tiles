@@ -85,7 +85,7 @@ export function LivePreview({ def, values, categoryName, colors = [] }: { def: R
     case "categories":
       return (
         <div>
-          <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
+          <div className="relative aspect-square overflow-hidden bg-slate-100">
             <Img src={image} alt="" fill sizes="300px" className="object-cover" />
           </div>
           <p className="mt-2 text-sm text-slate-900">{title}</p>

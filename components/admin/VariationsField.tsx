@@ -516,7 +516,7 @@ function Row({ v, index, count, unit, colors, color, problems, open, selected, o
 
           {/* photos */}
           <div className="mt-4">
-            <span className={fieldLabel}>Photos <span className="font-normal text-slate-400">— shown when a customer picks this variation</span></span>
+            <span className={fieldLabel}>Photos <span className="font-normal text-slate-400">— shown when a customer picks this variation · square 1:1, 1080×1080 px</span></span>
             <Photos images={v.images} onChange={(images) => onChange({ images })} />
           </div>
 

@@ -183,7 +183,7 @@ export default async function Home() {
               href={`/products?category=${cat.slug}`}
               className="group w-[44%] shrink-0 snap-start sm:w-[calc(33.333%-14px)] lg:w-[calc(25%-15px)]"
             >
-              <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-mist sm:rounded-none">
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-mist sm:rounded-none">
                 <Img src={cat.image} alt={cat.name} fill sizes="(max-width:640px) 50vw, 280px" className="object-cover transition duration-700 group-hover:scale-105" />
               </div>
               <h3 className="mt-2.5 line-clamp-1 text-[14px] text-ink sm:mt-4 sm:text-[15px]">{cat.name}</h3>
