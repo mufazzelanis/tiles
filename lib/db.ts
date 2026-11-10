@@ -242,9 +242,49 @@ async function load(conn: Pool | PoolConnection): Promise<Database> {
   return out;
 }
 
+/* --------------------------------------------------------------- cache
+ * Every page used to read every table. Now the data is kept in memory and reused until
+ * something changes: each write bumps a tiny version row, and readers compare against it
+ * with one cheap query, so edits (from any server process) show up immediately. */
+
+const VERSION_KEY = "data:version";
+const MAX_AGE = 5 * 60_000;
+type Cached = { version: string; at: number; db?: Promise<Database>; settings: Map<string, unknown> };
+const c = globalThis as unknown as { __tilesCache?: Cached; __tilesVersion?: { at: number; value: Promise<string> } };
+
+async function currentVersion(): Promise<string> {
+  // many reads in one render share a single version lookup
+  const v = c.__tilesVersion;
+  if (v && Date.now() - v.at < 300) return v.value;
+  const value = pool()
+    .query<RowDataPacket[]>("SELECT `value` FROM `settings` WHERE `key` = ?", [VERSION_KEY])
+    .then(([rows]) => String(rows[0]?.value ?? "0"));
+  c.__tilesVersion = { at: Date.now(), value };
+  value.catch(() => (c.__tilesVersion = undefined));
+  return value;
+}
+
+async function cacheEntry(): Promise<Cached> {
+  const version = await currentVersion();
+  const hit = c.__tilesCache;
+  if (hit && hit.version === version && Date.now() - hit.at < MAX_AGE) return hit;
+  return (c.__tilesCache = { version, at: Date.now(), settings: new Map() });
+}
+
+async function bumpVersion(conn: Pool | PoolConnection) {
+  const v = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await conn.query("INSERT INTO `settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)", [VERSION_KEY, v]);
+  c.__tilesCache = undefined;
+  c.__tilesVersion = undefined;
+}
+
 export async function getDb(): Promise<Database> {
   await ready();
-  return load(pool());
+  const entry = await cacheEntry();
+  entry.db ??= load(pool());
+  entry.db.catch(() => (entry.db = undefined));
+  // callers may sort or edit what they get, so each one gets its own copy
+  return structuredClone(await entry.db);
 }
 
 /**
@@ -253,17 +293,22 @@ export async function getDb(): Promise<Database> {
  */
 export async function getSetting<T>(key: string): Promise<T | null> {
   await ready();
-  const [rows] = await pool().query<RowDataPacket[]>("SELECT `value` FROM `settings` WHERE `key` = ?", [key]);
-  try {
-    return rows[0] ? (JSON.parse(rows[0].value) as T) : null;
-  } catch {
-    return null;
+  const entry = await cacheEntry();
+  if (!entry.settings.has(key)) {
+    const [rows] = await pool().query<RowDataPacket[]>("SELECT `value` FROM `settings` WHERE `key` = ?", [key]);
+    let value: unknown = null;
+    try {
+      value = rows[0] ? JSON.parse(rows[0].value) : null;
+    } catch {}
+    entry.settings.set(key, value);
   }
+  return structuredClone(entry.settings.get(key)) as T | null;
 }
 
 export async function setSetting(key: string, value: unknown) {
   await ready();
   await pool().query("INSERT INTO `settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)", [key, JSON.stringify(value)]);
+  await bumpVersion(pool());
 }
 
 /* -------------------------------------------------------------- writes */
@@ -311,7 +356,9 @@ export function mutate<T>(fn: (db: Database) => T | Promise<T>): Promise<T> {
       // keep the activity log bounded
       await conn.query("DELETE FROM `activity` WHERE `id` NOT IN (SELECT `id` FROM (SELECT `id` FROM `activity` ORDER BY `at` DESC LIMIT 200) AS keep)");
 
+      await bumpVersion(conn);
       await conn.commit();
+      c.__tilesCache = undefined;
       return result;
     } catch (e) {
       await conn.rollback();

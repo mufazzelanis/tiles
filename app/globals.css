@@ -220,3 +220,9 @@ body {
 a, button {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* page-loading bar (app/(site)/loading.tsx) */
+@keyframes loadbar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}

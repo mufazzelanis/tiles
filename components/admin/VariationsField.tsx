@@ -67,7 +67,8 @@ export function VariationsField({ name, defaultValue, colors, onChange }: {
   const [open, setOpen] = useState<Set<string>>(() => new Set(opts.variations.length <= 2 ? opts.variations.map((v) => v.id) : []));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
-  const [generator, setGenerator] = useState(false);
+  // a new product (no variations yet) opens the generator right away, so every option is on screen
+  const [generator, setGenerator] = useState(() => opts.variations.length === 0);
 
   const set = (fn: (o: ProductOptions) => ProductOptions) => (setRaw(fn), onChange?.());
   const setRow = (id: string, patch: Partial<Variation>) =>
@@ -208,7 +209,7 @@ export function VariationsField({ name, defaultValue, colors, onChange }: {
             );
           })
         )}
-        {!opts.variations.length && (
+        {!opts.variations.length && !generator && (
           <div className="rounded-xl border-2 border-dashed border-slate-200 bg-white px-4 py-8 text-center">
             <Layers className="mx-auto size-8 text-slate-300" />
             <p className="mt-2 text-sm font-medium text-slate-700">No variations yet</p>
@@ -759,6 +760,7 @@ function Generator({ unit, colors, designs: known, onCreate, onClose }: {
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Wand2 className="size-4 text-primary-600" /> Generate combinations</p>
         <button type="button" onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-white" aria-label="Close"><X className="size-4" /></button>
       </div>
+      <p className="-mt-2 text-xs text-slate-500">Tick the colours and sizes this product comes in, set thickness and price, then press Create — every variation is made at once. You can edit each one afterwards.</p>
       <label className="block">
         <span className={fieldLabel}>1 · Designs (comma separated)</span>
         <input value={designs} onChange={(e) => setDesigns(e.target.value)} placeholder="Statuario, Calacatta" className="input" />
@@ -788,8 +790,20 @@ function Generator({ unit, colors, designs: known, onCreate, onClose }: {
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <div><span className={fieldLabel}>Thickness</span><Affix value={thickness} onChange={setThickness} suffix="mm" placeholder="9" /></div>
-        <label><span className={fieldLabel}>Sqft</span><input value={sqft} onChange={(e) => setSqft(e.target.value)} placeholder="12x12" className="input" /></label>
+        <div>
+          <span className={fieldLabel}>Thickness</span>
+          <Affix value={thickness} onChange={setThickness} suffix="mm" placeholder="9" />
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {THICKNESS_PRESETS.map((t) => <button key={t} type="button" onClick={() => setThickness(t)} className={chip(thickness === t)}>{t}</button>)}
+          </div>
+        </div>
+        <label>
+          <span className={fieldLabel}>Sqft</span>
+          <input value={sqft} onChange={(e) => setSqft(e.target.value)} placeholder="12x12" className="input" />
+          <span className="mt-1.5 flex flex-wrap gap-1">
+            {SQFT_PRESETS.map((q) => <button key={q} type="button" onClick={() => setSqft(q)} className={chip(sqft === q)}>{q}</button>)}
+          </span>
+        </label>
         <div><span className={fieldLabel}>Price per piece</span><Affix value={price} onChange={setPrice} prefix="৳" placeholder="Set later" /></div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
